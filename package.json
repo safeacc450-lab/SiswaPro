@@ -1,0 +1,13 @@
+{
+  "name": "siswapro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('SiswaPro web assets ready')\""
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3"
+  }
+}

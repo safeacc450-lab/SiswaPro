@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SiswaPro</string>
+    <string name="title_activity_main">SiswaPro</string>
+    <string name="package_name">com.siswapro.app</string>
+    <string name="custom_url_scheme">com.siswapro.app</string>
+</resources>
