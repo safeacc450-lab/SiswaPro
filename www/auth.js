@@ -69,6 +69,20 @@ const Auth = {
     return this.identity;
   },
 
+  // self-serve account creation (2026-10-23 sign-off: users register
+  // themselves; personal space is bootstrapped by Sync.resolveSpace)
+  async signup(email, password) {
+    if (!this.ok) throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
+    const { data, error } = await this.client.auth.signUp({ email, password });
+    if (error) throw error;
+    if (!data.session) {
+      throw new Error('Kebutuhan konfirmasi email masih aktif — cek kotak masuk, lalu Masuk di sini.');
+    }
+    this.session = data.session;
+    this.identity = this.identify(email || (data.user && data.user.email));
+    return this.identity;
+  },
+
   // restore persisted session (Keystore-backed adapter handles refresh)
   async restore() {
     if (!this.ok && !(await this.initClient())) return null;

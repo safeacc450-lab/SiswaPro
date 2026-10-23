@@ -43,13 +43,31 @@ const Sync = {
     return data;
   },
 
-  // ---------- server personal space discovery -------------------------
+  // ---------- server personal space discovery + self-bootstrap --------
   async resolveSpace() {
     if (this.spaceId) return this.spaceId;
     const rows = await this.rest('GET', 'spaces', '?kind=eq.personal&select=id');
-    if (!rows || rows.length !== 1) throw new Error('personal space not found — run guide §4 seed');
-    this.spaceId = rows[0].id;
-    await LocalDb.setSetting('server_space', this.spaceId);
+    if (rows && rows.length === 1) {
+      this.spaceId = rows[0].id;
+      await LocalDb.setSetting('server_space', this.spaceId);
+      return this.spaceId;
+    }
+    if (rows && rows.length > 1)
+      throw new Error('beberapa personal space — minta cek server (seharusnya tak mungkin)');
+    // 0 rows → bootstrap (self-serve accounts: create own space; RLS
+    // members_insert 0003 lets the owner add themselves as sole member)
+    if (!Auth.session || !Auth.session.user) throw new Error('belum login');
+    const me = Auth.session.user.id;
+    const name = (Auth.identity && Auth.identity.role) ||
+                 (Auth.session.user.email || '').split('@')[0] || 'Personal';
+    const created = await this.rest('POST', 'spaces', '',
+      { kind: 'personal', owner_id: me, name });
+    const sp = Array.isArray(created) ? created[0] : created;
+    if (!sp || !sp.id) throw new Error('bootstrap personal space gagal');
+    const ins = await this.rest('POST', 'space_members', '',
+      { space_id: sp.id, member_id: me });
+    this.spaceId = sp.id;
+    await LocalDb.setSetting('server_space', String(this.spaceId));
     return this.spaceId;
   },
 

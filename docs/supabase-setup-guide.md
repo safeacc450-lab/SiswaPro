@@ -16,11 +16,30 @@ What I built in this phase: `supabase/migrations/0001_init.sql` (schema + RLS + 
 - SQL Editor → open `supabase/migrations/0001_init.sql` (whole file) → Run.
 - Expect success with ~20 tables/policies/functions objects. If an error names an object already — rerun once after the conflicting section (idempotent-ish; first full run on a new project is clean).
 
-## 4. Create the two accounts + seed spaces
-1. Authentication → Users → **Add user** → `LEA_EMAIL` + password (out-of-band delivery; the pairs are NOT written here).
-2. Same for `VIOLET_EMAIL` (+password).
-3. Copy both user **UUIDs**; then run the commented **§4 seed** block from 0001_init.sql in the SQL editor, with emails swapped for real ones (or ids).
-4. Verify: Table editor → `spaces` shows 3 rows (2 personal, 1 shared Rumah both members).
+## 4. Accounts — self-serve (updated 2026-10-23)
+Lea and Violet register THEMSELVES inside the app: login overlay → **Buat akun baru ✨** → email+password (min 6 chars). No dashboard user creation needed by the maker.
+- On first sync the app bootstrap-creates each user's own personal space + membership (migration 0003 `members_insert` permits self-add to own-written spaces only).
+- Maker must ensure Auth → Providers → Email → **"Confirm email" is OFF** (or users will need to click an email link before login works — the app explains this in the error text if left on).
+- Accounts config in `supabase-config.js` (lea/violet emails) is now optional pretty-naming only — identity falls back to the login email.
+
+The old §4 pre-seed of personal spaces is obsolete. The shared space "Rumah" is NOT created yet — once both users have registered, add it via SQL editor (invite of member 2 will be part of Phase 3's invite flow until then):
+```sql
+-- run AFTER both users have signed up (emails = their real ones):
+do $$
+declare
+  lea_id uuid; violet_id uuid; sp uuid;
+begin
+  select id into lea_id    from auth.users where email = 'LEA_EMAIL_REAL';
+  select id into violet_id from auth.users where email = 'VIOLET_EMAIL_REAL';
+  if lea_id is null or violet_id is null then
+    raise exception 'both users must have signed up first';
+  end if;
+  insert into public.spaces (kind, owner_id, name)
+    values ('shared', lea_id, 'Rumah') returning id into sp;
+  insert into public.space_members (space_id, member_id)
+    values (sp, lea_id), (sp, violet_id);
+end $$;
+```
 
 ## 5. Configure the app
 - Edit `www/vendor/supabase-config.js` → paste URL, anon key, both account emails.

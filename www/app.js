@@ -520,6 +520,35 @@ async function doLogin(){
   }
 }
 
+// ---------- SIGNUP (self-serve accounts, signed-off 2026-10-23; the
+// personal space is bootstrapped server-side by Sync.resolveSpace) ----
+async function doSignup(){
+  const btn=$('li-signup-btn'), err=$('li-err');
+  err.textContent='';
+  const email=$('li-email').value.trim(), pass=$('li-pass').value;
+  if(!email.includes('@') || pass.length < 6){
+    err.textContent='Isi email yang valid dan password minimal 6 karakter.';
+    return;
+  }
+  if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
+    err.textContent='Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    return;
+  }
+  btn.disabled=true; btn.textContent='Membuat akun…';
+  try{
+    await Auth.initClient();
+    const idty = await Auth.signup(email, pass);
+    $('auth').style.display='none';
+    toast('Akun dibuat — selamat datang, ' + (idty.role || idty.email) + ' ✓');
+    updateChip((idty.role || 'Sinkron') + '…');
+    await manualSync();
+  }catch(e){
+    err.textContent = (e && e.message || 'Pendaftaran gagal').replace(/^AuthApiError:? */,'');
+  }finally{
+    btn.disabled=false; btn.textContent='Buat akun baru ✨';
+  }
+}
+
 (async function boot(){
   try{
     // tunggu bridge Capacitor (native-bridge injects before user scripts,
