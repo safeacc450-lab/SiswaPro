@@ -16,9 +16,10 @@ const Auth = {
 
   configured() {
     const c = window.SUPABASE_CONFIG || {};
+    // URL + publishable key are what gate sync; email mapping is only
+    // used for identity naming (falls back to login email when absent)
     return !!(c.url && c.anonKey &&
-              !/^PASTE_/.test(c.url) && !/^PASTE_/.test(c.anonKey) &&
-              !/^\.?$|^PASTE_/.test(c.accounts && c.accounts.lea || 'PASTE'));
+              !/^PASTE_/.test(c.url) && !/^PASTE_/.test(c.anonKey));
   },
 
   secure() {

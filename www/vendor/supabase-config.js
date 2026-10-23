@@ -5,8 +5,8 @@
 // PL: create the project per docs/supabase-setup-guide.md, then paste
 // Project URL + anon key and the two mapped account emails here.
 window.SUPABASE_CONFIG = {
-  url: 'PASTE_PROJECT_URL',          // e.g. https://xxxx.supabase.co
-  anonKey: 'PASTE_ANON_PUBLIC_KEY',  // Settings > API > anon public
+  url: 'https://atqfatnivxzzzibtqxzg.supabase.co',
+  anonKey: 'sb_publishable_Ph3nfb8zPwvQMMJGGnFRPA_d21r7fPQ',
   accounts: {
     lea:    'LEA_EMAIL',             // e.g. lea@example.com   (bootstrapped in §4)
     violet: 'VIOLET_EMAIL'           // e.g. violet@example.com
