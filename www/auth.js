@@ -73,14 +73,42 @@ const Auth = {
   // themselves; personal space is bootstrapped by Sync.resolveSpace)
   async signup(email, password) {
     if (!this.ok) throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
-    const { data, error } = await this.client.auth.signUp({ email, password });
+    const { data, error } = await this.client.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: 'siswapro://auth/callback' }
+    });
     if (error) throw error;
     if (!data.session) {
-      throw new Error('Kebutuhan konfirmasi email masih aktif — cek kotak masuk, lalu Masuk di sini.');
+      throw new Error('Cek email kamu: tautan konfirmasi sudah dikirim — buka di HP ini, lalu Masuk di sini.');
     }
     this.session = data.session;
     this.identity = this.identify(email || (data.user && data.user.email));
     return this.identity;
+  },
+
+  // deep-link landing for the auth email (emailRedirectTo). The Supabase
+  // /auth/v1/verify endpoint 302s to siswapro://auth/callback#access_token=…
+  // &refresh_token=… — exchange them for a persisted session.
+  async handleUrl(url) {
+    if (!this.ok || typeof url !== 'string' ||
+        !url.startsWith('siswapro://auth/callback')) return false;
+    const i = url.indexOf('#');
+    if (i < 0) return false;
+    let frag = {}; let okFrag = false;
+    url.slice(i + 1).split('&').forEach(kv => {
+      const p = kv.split('=');
+      if (p.length === 2) { frag[p[0]] = decodeURIComponent(p[1]); okFrag = true; }
+    });
+    if (!okFrag || !frag.access_token || !frag.refresh_token) return false;
+    const { data, error } = await this.client.auth.setSession({
+      access_token: frag.access_token,
+      refresh_token: frag.refresh_token
+    });
+    if (error) throw error;
+    this.session = data.session;
+    const user = data.session.user || {};
+    this.identity = this.identify(user.email || '');
+    return true;
   },
 
   // restore persisted session (Keystore-backed adapter handles refresh)

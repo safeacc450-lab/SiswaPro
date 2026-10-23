@@ -155,6 +155,24 @@ body.dark .obwrap{background:rgba(2,6,23,.7)}
 body.dark .empty{color:#5a6b91}
 body.dark .btn-danger{background:rgba(220,38,38,.12);border-color:#7f1d1d}
 
+/* black mode (AMOLED pekat) — subset dari dark */
+body.black{--bg:#000000;--card:#0a0a0f;--ink:#f5f7fa;--ink2:#e2e8f0;--muted:#8b95a8;--line:#1b1b21;--soft:#000000;--ring-bg:#17171c}
+body.black .bottom-nav{background:rgba(0,0,0,.94)}
+body.black .item.late{background:#190b12;border-color:#7f1d1d}
+body.black .item.duetoday{background:#171203;border-color:#a16207}
+body.black .item.jamnow{background:rgba(99,102,241,.14)}
+body.black .obwrap{background:rgba(0,0,0,.82)}
+body.black .empty{color:#4d5568}
+
+/* auth / login polish */
+.auth-link{background:none;border:0;color:var(--ink2);font-size:12.5px;font-weight:700;
+  margin-top:12px;padding:8px;text-decoration:underline;text-decoration-color:var(--line);
+  text-underline-offset:3px}
+.auth-link:active{color:var(--ink)}
+.auth-note{font-size:10.5px;color:var(--muted);line-height:1.5;margin-top:12px;
+  border-top:1px solid var(--line);padding-top:10px}
+body.black .auth-link{text-decoration-color:#2a2a31}
+
 
 /* ===== NEON-LIFT OVERHAUL (dial-in dari example aqua portfolio) ===== */
 html{scroll-behavior:smooth}

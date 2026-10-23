@@ -94,17 +94,26 @@ function applyAcc(i){
   r.setProperty('--bar',t.bar);
   r.setProperty('--glow',hexToRgba(t.a,.38));
   r.setProperty('--gline',hexToRgba(t.a,.5));
-  document.querySelector('meta[name=theme-color]').content = S.dark ? '#141c2e' : t.bar;
+  document.querySelector('meta[name=theme-color]').content = S.dark === 'black' ? '#000000' : S.dark ? '#141c2e' : t.bar;
   [0,1,2,3].forEach(n=>{ const b=$('acc-'+n); if(b) b.classList.toggle('on', n===i); });
   save().catch(persist);
 }
 function setAcc(i){ applyAcc(i); toast('Tema warna diganti ✓'); }
 function toggleDark(){
-  S.dark=!S.dark; applyDark(); renderHome(); save().catch(persist);
-  $('dark-btn').textContent = S.dark? '☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF';
-  toast(S.dark?'Mode gelap aktif':'Mode terang aktif');
+  // cycle: OFF → ON → HITAM (AMOLED pekat) → OFF
+  S.dark = !S.dark ? true : (S.dark === true ? 'black' : false);
+  applyDark(); renderHome(); save().catch(persist);
+  const lbl = S.dark===false ? '🌙 Mode Gelap: OFF' : S.dark==='black' ? '⬛ Mode Gelap: HITAM' : '☀️ Mode Gelap: ON';
+  $('dark-btn').textContent = lbl;
+  toast(S.dark===false ? 'Mode terang' : S.dark==='black' ? 'Mode gelap pekat (hitam) aktif' : 'Mode gelap aktif');
 }
-function applyDark(){ document.body.classList.toggle('dark', !!S.dark); if(S.dark) document.querySelector('meta[name=theme-color]').content='#141c2e'; }
+function applyDark(){
+  document.body.classList.toggle('dark', !!S.dark);
+  document.body.classList.toggle('black', S.dark==='black');
+  // light mode: applyAcc already set the accent meta color — don't clobber it
+  if (S.dark) document.querySelector('meta[name=theme-color]').content =
+    S.dark==='black' ? '#000000' : '#141c2e';
+}
 
 // ---------- onboarding (FR-01 sementara: nama lokal; akun server = Phase 2) ----------
 function obPick(i,el){
@@ -448,7 +457,7 @@ function tab(target){
   if(target==='jadwal') renderJd();
   if(target==='pr') renderPR();
   if(target==='fokus'){ renderBars(); renderStreak(); }
-  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark?'☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF'; refreshIdentityCard(); }
+  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON'; refreshIdentityCard(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -465,7 +474,7 @@ function renderAll(){
   applyAcc(S.accent); applyDark();
   renderMapelSelect(); renderMapelList(); renderHome(); renderPR(); renderJd(); renderBars(); renderStreak();
   $('in-nama').value=S.nama;
-  $('dark-btn').textContent=S.dark?'☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF';
+  $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON';
   refreshIdentityCard();
   const chips=document.querySelectorAll('.preset');
   chips.forEach((b,idx)=>{ const p=[10,25,50][idx]; b.classList.toggle('on', p===S.preset); });
@@ -497,7 +506,27 @@ async function manualSync(){
   }
 }
 
-// ---------- LOGIN (Phase 2, FR-01 identity binding server-side) ----------
+// ---------- LOGIN/SIGNUP (Phase 2; self-serve accounts signed-off
+// 2026-10-23; personal space bootstrapped by Sync.resolveSpace) -------
+const AUTH_LBL = { login:'Masuk 🔓', signup:'Daftar 🚀' };
+let authMode = 'login';
+function renderAuthMode(){
+  const signup = authMode === 'signup';
+  const t = $('auth-t'), p = $('auth-p'), btn = $('li-btn'), lnk = $('li-mode');
+  if (t) t.textContent = signup ? 'Buat akun SiswaPro' : 'Masuk SiswaPro';
+  if (p) p.textContent = signup
+    ? 'Daftar dengan email kamu (server: fase sinkron). Password minimal 6 karakter.'
+    : 'Masuk dengan akun kamu (server: fase sinkron) untuk mulai mencatat lintas perangkat.';
+  if (btn) btn.textContent = AUTH_LBL[authMode];
+  if (lnk) lnk.textContent = signup ? '← Sudah punya akun? Masuk' : 'Belum punya akun? Daftar di sini ✨';
+  const err = $('li-err'); if (err) err.textContent = '';
+}
+function toggleAuthMode(){
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  renderAuthMode();
+}
+function doAuth(){ authMode === 'login' ? doLogin() : doSignup(); }
+
 async function doLogin(){
   const btn=$('li-btn'), err=$('li-err');
   err.textContent='';
@@ -516,14 +545,14 @@ async function doLogin(){
   }catch(e){
     err.textContent = (e && e.message || 'Masuk gagal').replace(/^AuthApiError:? */,'');
   }finally{
-    btn.disabled=false; btn.textContent='Masuk 🔓';
+    btn.disabled=false; btn.textContent=AUTH_LBL[authMode];
   }
 }
 
 // ---------- SIGNUP (self-serve accounts, signed-off 2026-10-23; the
 // personal space is bootstrapped server-side by Sync.resolveSpace) ----
 async function doSignup(){
-  const btn=$('li-signup-btn'), err=$('li-err');
+  const btn=$('li-btn'), err=$('li-err');
   err.textContent='';
   const email=$('li-email').value.trim(), pass=$('li-pass').value;
   if(!email.includes('@') || pass.length < 6){
@@ -545,7 +574,7 @@ async function doSignup(){
   }catch(e){
     err.textContent = (e && e.message || 'Pendaftaran gagal').replace(/^AuthApiError:? */,'');
   }finally{
-    btn.disabled=false; btn.textContent='Buat akun baru ✨';
+    btn.disabled=false; btn.textContent=AUTH_LBL.signup;
   }
 }
 
@@ -572,6 +601,36 @@ async function doSignup(){
 
   // ---- Phase 2: session restore + first happy-path sync -----------
   updateChip('Lokal');
+  // email-confirmation deep link (siswapro://auth/callback#access_token=…)
+  try {
+    if (window.Capacitor && window.Capacitor.Plugins.App) {
+      const App = window.Capacitor.Plugins.App;
+      App.addListener('appUrlOpen', async ({ url }) => {
+        try {
+          const landed = await Auth.handleUrl(url);
+          if (landed) {
+            $('auth').style.display = 'none';
+            updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
+            toast('Email terkonfirmasi — masuk otomatis ✓');
+            await manualSync();
+          }
+        } catch (e) {
+          console.warn('deep link session failed', e);
+          toast('Tautan konfirmasi gagal: ' + (e.message || e));
+        }
+      });
+      const launch = await App.getLaunchUrl();
+      if (launch && launch.url) {
+        const landed = await Auth.handleUrl(launch.url);
+        if (landed) {
+          $('auth').style.display = 'none';
+          updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
+          toast('Email terkonfirmasi — masuk otomatis ✓');
+          await manualSync();
+        }
+      }
+    }
+  } catch (e) { console.warn('App plugin unavailable', e); }
   if (await Auth.initClient()) {
     const idty = await Auth.restore();
     if (!S.ob) {

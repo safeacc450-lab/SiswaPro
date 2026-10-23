@@ -230,19 +230,20 @@
   </div>
 </div>
 
-<!-- LOGIN (Phase 2, tampil hanya jika server dikonfigurasi) -->
+<!-- LOGIN/SIGNUP (Phase 2, tampil hanya jika server dikonfigurasi) -->
 <div id="auth" class="obwrap" style="display:none">
   <div class="obcard">
-    <div class="ob-ico">🔐</div>
-    <h1 class="ob-t">Masuk SiswaPro</h1>
-    <p class="ob-p">Masuk dengan akun kamu ( server : fase sinkron ) untuk mulai mencatat lintas perangkat.</p>
+    <div class="ob-ico">🎓</div>
+    <h1 class="ob-t" id="auth-t">Masuk SiswaPro</h1>
+    <p class="ob-p" id="auth-p">Masuk dengan akun kamu ( server : fase sinkron ) untuk mulai mencatat lintas perangkat.</p>
     <label class="ob-fl">Email akun</label>
     <input id="li-email" type="email" inputmode="email" autocomplete="email" placeholder="nama@contoh.com">
     <label class="ob-fl">Password</label>
     <input id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••">
     <span id="li-err" style="display:block;color:#dc2626;font-size:11.5px;min-height:16px;margin-top:4px"></span>
-    <button class="btn-primary" id="li-btn" onclick="doLogin()">Masuk 🔓</button>
-    <button class="btn-sec" style="width:100%;margin-top:8px" id="li-signup-btn" onclick="doSignup()">Buat akun baru ✨</button>
+    <button class="btn-primary" id="li-btn" onclick="doAuth()">Masuk 🔓</button>
+    <button id="li-mode" class="auth-link" onclick="toggleAuthMode()">Belum punya akun? Daftar di sini ✨</button>
+    <p class="auth-note">🔒 Data kamu diamankan: akun + token di penyimpanan aman perangkat, isi catatan hanya bisa dibaca kamu.</p>
   </div>
 </div>
 

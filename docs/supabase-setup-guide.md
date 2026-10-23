@@ -17,9 +17,11 @@ What I built in this phase: `supabase/migrations/0001_init.sql` (schema + RLS + 
 - Expect success with ~20 tables/policies/functions objects. If an error names an object already — rerun once after the conflicting section (idempotent-ish; first full run on a new project is clean).
 
 ## 4. Accounts — self-serve (updated 2026-10-23)
-Lea and Violet register THEMSELVES inside the app: login overlay → **Buat akun baru ✨** → email+password (min 6 chars). No dashboard user creation needed by the maker.
+Lea and Violet register THEMSELVES inside the app: login overlay → toggle **Daftar di sini ✨** → email+password (min 6 chars). No dashboard user creation needed by the maker.
+- Dashboard → Authentication → URL Configuration: **Site URL** and **Redirect URLs must include `siswapro://auth/callback`** — otherwise the confirmation link opens `http://localhost:3000` (default) and the app never receives the token.
+- The app registers a deep-link target `siswapro://auth/callback`; clicking the confirmation link on the phone opens SiswaPro directly and auto-logs in (supabase-js `setSession` from the token fragment; `emailRedirectTo` is sent on signup).
 - On first sync the app bootstrap-creates each user's own personal space + membership (migration 0003 `members_insert` permits self-add to own-written spaces only).
-- Maker must ensure Auth → Providers → Email → **"Confirm email" is OFF** (or users will need to click an email link before login works — the app explains this in the error text if left on).
+- Custom SMTP (activated 2026-10-24) is used by Supabase for the verification email; keep "Confirm email" ON if the SMTP-from domain is verified, otherwise emails may land in spam — the flow works either way once `siswapro://auth/callback` is a valid Redirect URL.
 - Accounts config in `supabase-config.js` (lea/violet emails) is now optional pretty-naming only — identity falls back to the login email.
 
 The old §4 pre-seed of personal spaces is obsolete. The shared space "Rumah" is NOT created yet — once both users have registered, add it via SQL editor (invite of member 2 will be part of Phase 3's invite flow until then):
