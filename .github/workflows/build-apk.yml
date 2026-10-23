@@ -29,8 +29,9 @@ jobs:
         # interactive (y/N) prompt with cmdline-tools 16 and exits 1. Piping
         # `yes` ourselves is reliable; the runner's preinstalled SDK is used.
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null
+          "$SDKM" "platform-tools" "platforms;android-36" "build-tools;35.0.0"
 
       - name: Install dependencies
         run: npm install
