@@ -178,7 +178,9 @@ Labels stay device-level, never person-level (arch §7: attribution is for class
 - Ghost **"Nanti"** — leaves it unresolved; item stays flagged, chip badge remains. No timeout, no auto-resolution.
 - Confirm footer (FR-09 convergence promise): **"Setelah disimpan, kedua perangkat akan menampilkan isi yang sama persis."**
 
-### 5.3 Edit-vs-delete conflict (separate case; arch §13 F4) — **PENDING-PL per Q5**
+### 5.3 Edit-vs-delete conflict (separate case; arch §13 F4) — **RESOLVED 2026-10-21: copy set A adopted**
+
+PL delegated the pick ("up on you") 2026-10-21 → **Set A (keep-my-edit framing)** is the shipping copy: the default resolution preserves the user's edit, and the variant that discards it requires the confirm press — the safest parity with D-5. Set B below stays in the document as rejected alternate.
 
 Q5 asks the PL to pick the deletion verdict. **Both alternative copy sets are drafted; neither ships until the PL chooses.** In both sets the whole item conflicts (the incoming side deleted it while this device edited offline), and the branch that discards the user's edit additionally requires the confirm press — explicit consent is what makes a discard lawful under D-5.
 
@@ -265,7 +267,7 @@ Dropped as v1.3-only: hash-routing back-exit, 5-tab nav items, Fokus chart. Mand
 
 | # | Item | Owner / status |
 |---|---|---|
-| 1 | Edit-vs-delete copy set A vs B (§5.3) — both drafted, **PENDING-PL per arch Q5** | PL |
+| 1 | Edit-vs-delete copy set — **RESOLVED 2026-10-21: set A adopted** (PL-delegated pick; see §5.3) | resolved |
 | 2 | Chip wording — **RESOLVED by PL 2026-10-21: "Sinkron…" mandated** (round-2 decision); chip stacking precedence stays as §3 proposal | resolved / PL confirm |
 | 3 | Subject-list seed content per identity (schools differ; proposal drafted §2.3) | PL |
 | 4 | REAUTH login form fields (password vs magic link) | architect (Q2/ADR-3) |
