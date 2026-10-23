@@ -1,43 +1,24 @@
 'use strict';
+// ============================================================
+// SiswaPro MVP Phase 1 shell — v1.3 UX onto SQLite (LocalDb).
+// Storage: www/localdb.js (Capacitor plugin, single local
+// personal space). v1.3's localStorage/IndexedDB store is NOT
+// read, imported or touched (spec D-0/D-8 — no migration).
+// Sync comes in Phase 2/3; offline-only here, airplane-mode
+// safe by construction.
+// ============================================================
+
 // ---------- utils ----------
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const HARI3 = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-const PAL = ['#6366f1','#06b6d4','#16a34a','#ea580c','#8b5cf6','#db2777','#0ea5e9','#65a30d'];
+const PAL = ['#6366f1','#06b6d4','#16a34a','#ea580c','#8b5cf6','#db2777','#0ea5e8','#65a30d'];
 const colorOf = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return PAL[h%PAL.length]; };
 const tm = t => { const [a,b]=t.split(':').map(Number); return a*60+Number(b); };
 const iso = d => { const x=d||new Date(); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
 const pad = n => String(n).padStart(2,'0');
 const hexToRgba = (hex,a) => { const n=parseInt(hex.slice(1),16); return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')'; };
-
-// ---------- cadangan tahan lama (IndexedDB) ----------
-const DBK='siswapro';
-function idbGet(){ return new Promise(res=>{
-  try{
-    const r=indexedDB.open(DBK,1);
-    r.onupgradeneeded=e=>{ try{e.target.result.createObjectStore('kv');}catch(_){} };
-    r.onsuccess=e=>{
-      const db=e.target.result;
-      const tx=db.transaction('kv','readonly').objectStore('kv').get('state');
-      tx.onsuccess=()=>{ res(tx.result||null); db.close(); };
-      tx.onerror=()=>{ res(null); db.close(); };
-    };
-    r.onerror=()=>res(null);
-  }catch(e){ res(null); }
-  setTimeout(()=>res(null),1500);
-});}
-function idbPut(data){
-  try{
-    const r=indexedDB.open(DBK,1);
-    r.onupgradeneeded=e=>{ try{e.target.result.createObjectStore('kv');}catch(_){} };
-    r.onsuccess=e=>{
-      const db=e.target.result;
-      const tx=db.transaction('kv','readwrite').objectStore('kv').put({savedAt:Date.now(),data},'state');
-      tx.oncomplete=()=>db.close(); tx.onerror=()=>db.close();
-    };
-  }catch(e){}
-}
 
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2300); }
 function upTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
@@ -57,47 +38,47 @@ function beep(){
   }catch(e){}
 }
 
-// ---------- state ----------
+// ---------- state (mirror of DB rows; writes go through LocalDb) ----------
 const DEFAULT = {
   ob:false, nama:'', preset:25, accent:0, dark:false,
-  mapel:['Informatika & Koding','Matematika','Bahasa Inggris','IPA / Fisika'],
-  jadwal:[
-    {day:'Senin',  m:'Informatika & Koding', start:'07:00', end:'09:00', room:'Lab Komputer 1'},
-    {day:'Senin',  m:'Matematika',           start:'10:00', end:'11:30', room:'Kelas X-A'},
-    {day:'Senin',  m:'IPA / Fisika',         start:'13:00', end:'14:30', room:'Lab IPA 2'},
-    {day:'Selasa', m:'Matematika',           start:'07:45', end:'09:45', room:'Kelas X-A'},
-    {day:'Rabu',   m:'Bahasa Inggris',       start:'09:00', end:'10:30', room:'Ruang Bahasa'},
-    {day:'Kamis',  m:'IPA / Fisika',         start:'08:00', end:'09:30', room:'Kelas X-A'},
-    {day:'Jumat',  m:'Informatika & Koding', start:'08:00', end:'09:30', room:'Lab Komputer 1'}
-  ],
-  pr:[
-    {t:'Proyek Koding Aplikasi Android', m:'Informatika & Koding', d:false, due:iso(new Date())},
-    {t:'Latihan Soal Trigonometri',      m:'Matematika',           d:false, due:''},
-    {t:'Makalah Fisika Pemanasan Global',m:'IPA / Fisika',         d:true,  due:''}
-  ],
-  hist:[], quoteI:new Date().getDate()%100
+  mapel:[], jadwal:[], pr:[], hist:[]
 };
-let S;
-try{ S = Object.assign({}, structuredClone(DEFAULT), JSON.parse(localStorage.getItem('sp_state')||'{}')); }
-catch(e){ S = structuredClone(DEFAULT); }
+let S = structuredClone(DEFAULT);
+let mapelId = {};           // name -> subjects.id
 
-// migrasi lama (schema v1 papar lewat)
-if(!Array.isArray(S.hist)) S.hist=[];
-if(!Array.isArray(S.jadwal)) S.jadwal=[];
-if(!Array.isArray(S.pr)) S.pr=[];
-if(!Array.isArray(S.mapel)||!S.mapel.length) S.mapel=structuredClone(DEFAULT.mapel);
-if(!S.preset) S.preset=25;
-if(S.dark===undefined) S.dark=false;
+// hydrate from LocalDb
+async function hydrate(){
+  const kv = await LocalDb.settingsAll();
+  S.ob    = kv.onboarded === '1';
+  S.nama  = kv.nama || '';
+  S.preset= Number(kv.preset) || 25;
+  S.accent= Number(kv.accent) || 0;
+  S.dark  = kv.dark === '1';
 
-function deep(x){ return JSON.parse(JSON.stringify(x)); }
-function save(){
-  localStorage.setItem('sp_state', JSON.stringify(S));
-  localStorage.setItem('sp_ts', String(Date.now()));
-  idbPut(S);
+  const subs = await LocalDb.subjectsAll();
+  S.mapel = subs.map(r=>r.name);
+  mapelId = {};
+  subs.forEach(r=>{ mapelId[r.name]=r.id; });
+
+  S.jadwal = await LocalDb.scheduleAll();
+  S.pr = (await LocalDb.tasksAll()).map(r=>({ id:r.id, t:r.title, m:r.subject, d:!!r.done, due:r.due||'' }));
+
+  const focus = await LocalDb.focusByDay();
+  S.hist = Object.keys(focus).map(d=>({d, m:focus[d]})).filter(e=>e.m>0).sort((a,b)=>a.d<b.d?-1:1).slice(-30);
 }
 
-// fokus 30 hari terakhir saja
-S.hist = S.hist.filter(e=>e.m>0).slice(-30);
+// persist profile settings (returns Promise; UI may fire-and-forget)
+function save(){
+  return Promise.all([
+    LocalDb.setSetting('onboarded', S.ob?'1':'0'),
+    LocalDb.setSetting('nama', S.nama),
+    LocalDb.setSetting('preset', S.preset),
+    LocalDb.setSetting('accent', S.accent),
+    LocalDb.setSetting('dark', S.dark?'1':'0'),
+    LocalDb.setSetting('quote_i', S.quoteI||0)
+  ]);
+}
+const persist = err => { if(err) console.error('persist failed', err); };
 
 // ---------- tema ----------
 const THEMES = [
@@ -115,24 +96,25 @@ function applyAcc(i){
   r.setProperty('--gline',hexToRgba(t.a,.5));
   document.querySelector('meta[name=theme-color]').content = S.dark ? '#141c2e' : t.bar;
   [0,1,2,3].forEach(n=>{ const b=$('acc-'+n); if(b) b.classList.toggle('on', n===i); });
-  save();
+  save().catch(persist);
 }
 function setAcc(i){ applyAcc(i); toast('Tema warna diganti ✓'); }
 function toggleDark(){
-  S.dark=!S.dark; applyDark(); renderHome(); save();
+  S.dark=!S.dark; applyDark(); renderHome(); save().catch(persist);
   $('dark-btn').textContent = S.dark? '☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF';
   toast(S.dark?'Mode gelap aktif':'Mode terang aktif');
 }
 function applyDark(){ document.body.classList.toggle('dark', !!S.dark); if(S.dark) document.querySelector('meta[name=theme-color]').content='#141c2e'; }
 
-// ---------- onboarding ----------
+// ---------- onboarding (FR-01 sementara: nama lokal; akun server = Phase 2) ----------
 function obPick(i,el){
   document.querySelectorAll('#ob .acc').forEach(b=>b.classList.remove('on'));
   el.classList.add('on'); applyAcc(i);
 }
 function obDone(){
   S.nama = $('ob-nama').value.trim() || 'Siswa';
-  S.ob = true; save();
+  S.ob = true;
+  save().catch(persist);
   $('ob').style.display='none';
   renderAll();
   toast('Selamat belajar, '+S.nama+'! 🚀');
@@ -184,7 +166,7 @@ function renderHome(){
 
   // PR dekat
   const open = S.pr.filter(p=>!p.d).sort((p,q)=>(p.due||'zzz')<(q.due||'zzz')?-1:1);
-  $('h-pr').innerHTML = open.length ? open.slice(0,3).map((p,i)=>prItem(p, S.pr.indexOf(p), true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada PR dekat. Mantap!</div>';
+  $('h-pr').innerHTML = open.length ? open.slice(0,3).map((p)=>prItem(p, S.pr.indexOf(p), true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada PR dekat. Mantap!</div>';
 
   // quote hari
   $('h-quote').textContent = '"'+QUOTES[new Date().getDate()%QUOTES.length]+'"';
@@ -240,7 +222,6 @@ function renderPR(){
   const total=S.pr.length, selesai=S.pr.filter(p=>p.d).length;
   $('pr-prog').textContent=selesai+'/'+total+' selesai';
   $('pr-bar').style.width = total? (selesai/total*100)+'%':'0';
-  save();
 }
 function prItem(p, i, compact){
   const di=dueInfo(p);
@@ -260,12 +241,12 @@ function prItem(p, i, compact){
 function tambahPR(){
   const t=$('in-pr').value.trim(), m=$('in-mapel').value||'', due=$('in-due').value||'';
   if(!t){ toast('Tulis dulu judul tugasnya'); return; }
-  S.pr.unshift({t,m,d:false,due});
+  LocalDb.taskAdd({t,m,due}).then(id=>{ S.pr.unshift({id,t,m,d:false,due}); renderPR(); }).catch(persist);
   $('in-pr').value=''; $('in-due').value='';
-  renderPR(); toast('Tugas ditambahkan ✓');
+  toast('Tugas ditambahkan ✓');
 }
-function tog(i){ S.pr[i].d=!S.pr[i].d; renderPR(); if(S.pr[i].d){ buzz(200); toast('PR selesai. Kerja bagus!'); } }
-function del(i){ if(confirm('Hapus tugas ini?')){ S.pr.splice(i,1); renderPR(); } }
+function tog(i){ const p=S.pr[i]; p.d=!p.d; LocalDb.taskSetDone(p.id,p.d).catch(persist); renderPR(); if(p.d){ buzz(200); toast('PR selesai. Kerja bagus!'); } }
+function del(i){ if(confirm('Hapus tugas ini?')){ const p=S.pr[i]; LocalDb.taskDel(p.id).catch(persist); S.pr.splice(i,1); renderPR(); } }
 
 // ---------- JADWAL ----------
 let jdDay=null;
@@ -287,7 +268,6 @@ function renderJd(){
       <button class="btn-ico" onclick="delJd(${S.jadwal.indexOf(j)})">🗑️</button>
     </div>`).join('')
     : '<div class="empty"><div class="e-ico">🗓️</div>Belum ada jam pelajaran hari '+jdDay+'.<br>Tambahkan lewat form di bawah.</div>';
-  save();
 }
 function pilihHari(d){ jdDay=d; renderJd(); }
 function tambahJd(){
@@ -295,26 +275,26 @@ function tambahJd(){
   if(!m){ toast('Pilih mapel dulu (kelola di Pengaturan)'); return; }
   if(!start||!end||tm(end)<=tm(start)){ toast('Cek jam mulai & selesai'); return; }
   const bentrok=S.jadwal.find(j=>j.day===jdDay && tm(start)<tm(j.end) && tm(end)>tm(j.start));
-  S.jadwal.push({day:jdDay,m,start,end,room});
-  renderJd(); toast(bentrok ? 'Ditambahkan, tapi bentrok dengan '+esc(bentrok.m)+' ⚠️' : 'Jam pelajaran ditambahkan ✓');
+  LocalDb.scheduleAdd({m,day:jdDay,start,end,room}).then(id=>{ S.jadwal.push({id,m,day:jdDay,start,end,room}); renderJd(); }).catch(persist);
+  renderJd();
+  toast(bentrok ? 'Ditambahkan, tapi bentrok dengan '+esc(bentrok.m)+' ⚠️' : 'Jam pelajaran ditambahkan ✓');
 }
-function delJd(i){ if(confirm('Hapus jam pelajaran ini?')){ S.jadwal.splice(i,1); renderJd(); } }
+function delJd(i){ if(confirm('Hapus jam pelajaran ini?')){ LocalDb.scheduleDel(S.jadwal[i].id).catch(persist); S.jadwal.splice(i,1); renderJd(); } }
 
 // ---------- FOKUS ----------
 let dur=25*60, sisa=25*60, tmr=null, preset=25, paused=false;
 function fmt(x){ return pad(Math.floor(x/60))+':'+pad(x%60); }
 function setPreset(p,el){
-  preset=p; dur=p*60; sisa=dur; stopT(); paused=false;
+  preset=p; dur=p*60; sisa=dur; stopT(); paused=false; S.preset=p;
   document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on')); el.classList.add('on');
   ring(0); $('timer-box').textContent=fmt(sisa); $('ring-state').textContent='SIAP MULAI';
   $('btn-timer').textContent='▶ Mulai Belajar';
-  save();
+  save().catch(persist);
 }
 function ring(pct){ $('ring').style.background='conic-gradient(var(--a) '+pct+'%, var(--ring-bg) '+pct+'%)'; }
 function stopT(){ clearInterval(tmr); tmr=null; }
 function toggleTimer(){
   if(tmr){ stopT(); paused=true; $('btn-timer').textContent='▶ Lanjutkan'; $('ring-state').textContent='DIJEDA'; return; }
-  if(!paused){ } // sisa tetap
   tmr=setInterval(()=>{
     sisa--;
     ring(((dur-sisa)/dur*100)); $('timer-box').textContent=fmt(sisa);
@@ -331,17 +311,17 @@ function resetTimer(){
 function selesai(){
   stopT(); paused=false;
   beep(); buzz(1500);
-  const d=iso(new Date()); const e=S.hist.find(x=>x.d===d);
-  if(e) e.m+=preset; else S.hist.push({d,m:preset});
-  const tot=S.hist.reduce((a,x)=>a+x.m,0);
-  toast('Fokus '+preset+' menit selesai! Total '+tot+' menit tercatat 🎉');
+  const d=iso(new Date());
+  LocalDb.focusAdd(d, preset).then(()=>LocalDb.focusByDay()).then(focus=>{
+    S.hist = Object.keys(focus).map(day=>({d:day, m:focus[day]})).filter(e=>e.m>0).sort((a,b)=>a.d<b.d?-1:1).slice(-30);
+    renderBars(); renderStreak();
+  }).catch(persist);
+  toast('Fokus '+preset+' menit selesai! 🎉');
   sisa=dur; ring(0); $('timer-box').textContent=fmt(sisa);
   $('ring-state').textContent='SELESAI ✓';
   $('btn-timer').textContent='▶ Mulai Lagi';
-  save(); renderBars(); renderStreak();
 }
 function renderBars(){
-  // 7 hari terakhir
   const days=[];
   for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d); }
   const max=Math.max(30, ...days.map(d=>{ const e=S.hist.find(x=>x.d===iso(d)); return e?e.m:0; }));
@@ -377,7 +357,7 @@ function hitung(){
 // ---------- PENGATURAN ----------
 function simpanNama(){
   S.nama=$('in-nama').value.trim();
-  save(); renderHome(); toast(S.nama? 'Sapaan diperbarui ✓':'Nama dikosongkan');
+  save().catch(persist); renderHome(); toast(S.nama? 'Sapaan diperbarui ✓':'Nama dikosongkan');
 }
 function renderMapelSelect(){
   const o=S.mapel.map(m=>'<option>'+esc(m)+'</option>').join('');
@@ -394,39 +374,62 @@ function renderMapelList(){
       <button class="btn-ico" onclick="delMapel('${esc(m).replace(/'/g,'\\&#39;')}')">🗑️</button>
     </div>`;
   }).join('') : '<div class="empty">Belum ada mapel. Tambah satu!</div>';
-  save();
 }
 function tambahMapel(){
   const v=$('in-mapel-add').value.trim();
   if(!v){ toast('Tulis nama mapelnya'); return; }
   if(S.mapel.includes(v)){ toast('Mapel sudah ada'); return; }
-  S.mapel.push(v); $('in-mapel-add').value='';
-  renderMapelSelect(); renderMapelList(); toast('Mapel ditambahkan ✓');
+  LocalDb.subjectAdd(v).then(id=>{ S.mapel.push(v); mapelId[v]=id; $('in-mapel-add').value=''; renderMapelSelect(); renderMapelList(); }).catch(persist);
+  toast('Mapel ditambahkan ✓');
 }
 function delMapel(m){
   if(!confirm('Hapus mapel "'+m+'"? Jadwal & PR yang pakai akan tetap ada.')) return;
-  S.mapel=S.mapel.filter(x=>x!==m);
+  LocalDb.subjectDel(mapelId[m]).catch(persist);
+  S.mapel=S.mapel.filter(x=>x!==m); delete mapelId[m];
   renderMapelSelect(); renderMapelList(); toast('Mapel dihapus ✓');
 }
+
+// ---------- EKSPOR / IMPOR (FR-14) ----------
 function eksport(){
-  $('io-area').value=JSON.stringify(S);
-  toast('Data diekspor. Salin teksnya ke tempat aman ✓');
+  LocalDb.exportAll().then(d=>{
+    $('io-area').value=JSON.stringify(d);
+    toast('Data diekspor. Salin teksnya ke tempat aman ✓');
+  }).catch(()=>toast('Ekspor gagal — coba lagi'));
 }
-function importData(){
+async function importData(){
   const v=$('io-area').value.trim();
   if(!v){ toast('Tempel dulu data cadangan ke kotak teks'); return; }
-  try{
-    const d=JSON.parse(v);
-    if(!Array.isArray(d.pr)||!Array.isArray(d.jadwal)||!Array.isArray(d.mapel)) throw 0;
-    S=Object.assign({}, DEFAULT, d);
-    S.hist=Array.isArray(S.hist)?S.hist:[];
-    save(); location.reload();
-  }catch(e){ toast('Data tidak valid — cek tempelan'); }
+  let d;
+  try{ d=JSON.parse(v); }catch(e){ toast('Data tidak valid — cek tempelan'); return; }
+
+  // format MVP (mvp1)
+  if(d && d._v==='mvp1'){
+    if(!Array.isArray(d.mapel)||!Array.isArray(d.jadwal)||!Array.isArray(d.tasks)) { toast('Struktur cadangan tidak lengkap'); return; }
+    for(const j of d.jadwal) await LocalDb.scheduleAdd(j);
+    for(const t of d.tasks) await LocalDb.taskAdd(t);
+    for(const s of d.mapel||[]) await LocalDb.subjectAdd(s.name);
+    toast('Data MVP dipulihkan ✓');
+    location.reload();
+    return;
+  }
+  // format v1.x keepsake (mapel: [string], jadwal: [{m,day,start,end,room}], pr: [{t,m,d,due}], hist)
+  if(Array.isArray(d.mapel)&&Array.isArray(d.jadwal)&&Array.isArray(d.pr)){
+    for(const m of d.mapel) await LocalDb.subjectAdd(String(m));
+    for(const j of d.jadwal) await LocalDb.scheduleAdd({m:String(j.m),day:String(j.day),start:String(j.start),end:String(j.end),room:String(j.room||'')});
+    for(const p of d.pr) await LocalDb.taskAdd({t:String(p.t),m:String(p.m),due:String(p.due||'')});
+    for(const h of (Array.isArray(d.hist)?d.hist:[])) if(h.d&&h.m) await LocalDb.focusAdd(String(h.d), Number(h.m)|0);
+    if(d.nama) await LocalDb.setSetting('nama', String(d.nama));
+    await LocalDb.setSetting('onboarded','1');
+    toast('Data v1.x dipulihkan (import satu arah) ✓');
+    location.reload();
+    return;
+  }
+  toast('Data tidak dikenali — ini bukan cadangan SiswaPro');
 }
 function resetAll(){
   if(!confirm('YAKIN hapus SEMUA data (jadwal, PR, fokus, pengaturan)?')) return;
-  if(!confirm('Beterakhir konfirmasi: proses tidak bisa dibatalkan.')) return;
-  localStorage.removeItem('sp_state'); location.reload();
+  if(!confirm('Konfirmasi terakhir: proses tidak bisa dibatalkan.')) return;
+  LocalDb.wipe().then(()=>location.reload()).catch(()=>toast('Reset gagal — coba lagi'));
 }
 
 // ---------- NAV ----------
@@ -440,8 +443,16 @@ function tab(target){
   if(target==='jadwal') renderJd();
   if(target==='pr') renderPR();
   if(target==='fokus'){ renderBars(); renderStreak(); }
-  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark?'☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF'; }
+  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark?'☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF'; refreshIdentityCard(); }
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ---------- IDENTITAS (FR-01 Phase 1: profil lokal; binding akun server = Phase 2) ----------
+function refreshIdentityCard(){
+  const el=$('identity-status'); if(!el) return;
+  el.textContent = S.nama
+    ? 'Profil lokal aktif: '+S.nama+'.'
+    : 'Nama belum diisi — profil lokal belum lengkap.';
 }
 
 // ---------- INIT ----------
@@ -450,33 +461,40 @@ function renderAll(){
   renderMapelSelect(); renderMapelList(); renderHome(); renderPR(); renderJd(); renderBars(); renderStreak();
   $('in-nama').value=S.nama;
   $('dark-btn').textContent=S.dark?'☀️ Mode Gelap: ON':'🌙 Mode Gelap: OFF';
-  // sinkronkan chip preset dengan yang tersimpan
+  refreshIdentityCard();
   const chips=document.querySelectorAll('.preset');
-  chips.forEach((b,idx)=>{
-    const p=[10,25,50][idx];
-    b.classList.toggle('on', p===S.preset);
-  });
+  chips.forEach((b,idx)=>{ const p=[10,25,50][idx]; b.classList.toggle('on', p===S.preset); });
   preset=S.preset||25; dur=preset*60; sisa=dur;
 }
-save();
-if(!S.ob){ $('ob').style.display='flex'; } else { renderAll(); }
 
-// pulihkan state yang lebih baru dari IndexedDB (mis. localStorage terhapus saat pembaruan)
-idbGet().then(b=>{
-  if(b && b.data && Array.isArray(b.data.mapel) && b.savedAt > (Number(localStorage.getItem('sp_ts'))||0)){
-    try{ S = Object.assign({}, structuredClone(DEFAULT), b.data); }catch(e){ return; }
-    if(!Array.isArray(S.hist)) S.hist=[];
-    save();
-    if(S.ob){ $('ob').style.display='none'; }
-    renderAll();
+(async function boot(){
+  try{
+    // tunggu bridge Capacitor (native-bridge injects before user scripts,
+    // tapi hindari race kalau timing berubah)
+    if(!window.Capacitor){
+      await new Promise(res=>{
+        let n=0; const iv=setInterval(()=>{ if(window.Capacitor||++n>50){ clearInterval(iv); res(); } },100);
+      });
+    }
+    await LocalDb.init();
+    await LocalDb.ensurePersonalSpace(S.nama);
+    await hydrate();
+  }catch(e){
+    $('ob').innerHTML = '<div class="obcard"><h1 class="ob-t">Database gagal dibuka</h1><p class="ob-p">'+
+      'Penyimpanan lokal (SQLite) tidak tersedia: '+esc(String(e&&e.message||e))+
+      '. Coba tutup dan buka aplikasi lagi.</p></div>';
+    $('ob').style.display='flex';
+    return;
   }
-});
+  if(!S.ob){ $('ob').style.display='flex'; } else { renderAll(); }
+})();
 
 // info pembaruan versi
-var VER='1.3';
-if(S.ob && localStorage.getItem('sp_ver')!==VER){
+const VER='2.0-mvp1';
+if(localStorage.getItem('sp_ver')!==VER){
   localStorage.setItem('sp_ver',VER);
-  setTimeout(()=>toast('Aplikasi diperbarui ke v'+VER+' — jadwal, PR & mapel kamu tetap aman ✓'),1200);
 }
+
+// jam hidup di beranda
 setInterval(()=>{ if($('v-home').style.display!=='none'){ renderHome(); } },30000);
 window.addEventListener('scroll',()=>{ const t=$('totop'); if(window.scrollY>150) t.classList.add('show'); else t.classList.remove('show'); },{passive:true});

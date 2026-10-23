@@ -34,7 +34,7 @@
     <div class="app-title"><h1>SiswaPro</h1><p>Asisten Belajar Siswa</p></div>
   </div>
   <div class="appbar-right">
-    <span class="badge">v1.3</span>
+    <span class="badge">MVP</span>
     <button class="gear" onclick="tab('set')">⚙️</button>
   </div>
 </div>
@@ -215,11 +215,16 @@
       <button class="btn-danger" onclick="resetAll()">🗑️ Reset Semua Data</button>
     </div>
     <div class="card">
+      <h3 class="t">Identitas SiswaPro</h3>
+      <p id="identity-status" style="font-size:11.5px;color:var(--muted);margin-top:4px"></p>
+      <p style="font-size:10.5px;color:var(--muted);margin-top:6px">Akun server (Lea/Violet) &amp; sinkronisasi lintas perangkat menyusul di fase berikutnya. Data kamu tetap di perangkat ini.</p>
+    </div>
+    <div class="card">
       <h3 class="sec">TENTANG SISWAPRO</h3>
       <p style="font-size:11.5px;color:var(--muted);line-height:1.6">
-        SiswaPro v1.3 — dibuat untuk siswa Indonesia. Tanpa akun, tanpa server,
-        tanpa iklan. Menghapus data aplikasi akan mengosongkan jadwal, PR, dan
-        pengaturan — ekspor dulu sebelum reset.
+        SiswaPro MVP (fase lokal) — dibuat untuk siswa Indonesia. Tanpa iklan.
+        Data tersimpan lokal di perangkat ini (basis data aplikasi); ekspor teks
+        tetap tersedia. Akun &amp; sinkronisasi mengikuti di fase berikutnya.
       </p>
     </div>
   </div>
@@ -237,6 +242,7 @@
 <button class="to-top" id="totop" onclick="upTop()">↑</button>
 <div id="toast"></div>
 
+<script src="localdb.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
