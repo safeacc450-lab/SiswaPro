@@ -6,20 +6,9 @@
 -- Deny-by-default: every content table gets RLS + member predicate.
 -- =====================================================================
 
--- ---------- helper: membership predicate (security definer so it can
--- read space_members even when policies are being evaluated) ----------
-create or replace function public.is_space_member(_space uuid)
-returns boolean
-language sql stable security definer
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.space_members m
-    where m.space_id = _space and m.member_id = auth.uid()
-  );
-$$;
-
--- ---------- spaces ---------------------------------------------------
+-- ---------- tables first (SQL-language fns validate referenced
+-- relations at create time, so is_space_member must come after
+-- space_members exists) ----------
 create table public.spaces (
   id         uuid primary key default gen_random_uuid(),
   kind       text not null check (kind in ('personal','shared')),
@@ -107,7 +96,6 @@ alter table public.change_feed enable row level security;
 create policy feed_select on public.change_feed
   for select using (public.is_space_member(space_id));
 
--- ---------- sync ledger (Phase 3: push idempotency; table now) --------
 create table public.sync_ledger (
   op_id      uuid primary key,
   user_id    uuid references auth.users(id) on delete cascade,
@@ -118,6 +106,25 @@ create table public.sync_ledger (
 alter table public.sync_ledger enable row level security;
 create policy ledger_rw on public.sync_ledger
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ---------- helper: membership predicate (security definer so it can
+-- read space_members even when policies are being evaluated) ----------
+create or replace function public.is_space_member(_space uuid)
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.space_members m
+    where m.space_id = _space and m.member_id = auth.uid()
+  );
+$$;
+
+-- append-only: authenticated clients may SELECT their spaces' rows;
+-- writes happen ONLY through the SECURITY DEFINER trigger below
+alter table public.change_feed enable row level security;
+create policy feed_select on public.change_feed
+  for select using (public.is_space_member(space_id));
 
 -- ---------- feed trigger (SECURITY DEFINER bypasses feed RLS) ---------
 create or replace function public.feed_notify()
