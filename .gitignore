@@ -1,0 +1,20 @@
+# Generated dependencies — never commit
+node_modules/
+
+# Unrelated content kept out of the repo (tracked nowhere)
+Example/
+
+# Local-only planning/session state
+.opencode/
+
+# Gradle local output
+.gradle/
+build/
+
+# Build artifacts and local config
+*.apk
+local.properties
+
+# OS junk
+.DS_Store
+*.log

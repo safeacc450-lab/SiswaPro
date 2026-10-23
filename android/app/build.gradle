@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// web assets (www) -> assets/public, menjaga build gradle mandiri
+tasks.register('copyWebAssets', Copy) {
+    from '../../www'
+    into 'src/main/assets/public'
+    inputs.files fileTree(dir: '../../www')
+}
+tasks.matching { it.name ==~ /merge.*Assets/ }.configureEach {
+    dependsOn 'copyWebAssets'
+}
+
 android {
     namespace = "com.siswapro.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +17,8 @@ android {
         applicationId "com.siswapro.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 4
+        versionName "1.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
