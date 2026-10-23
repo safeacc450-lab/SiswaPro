@@ -118,6 +118,11 @@ function obDone(){
   $('ob').style.display='none';
   renderAll();
   toast('Selamat belajar, '+S.nama+'! 🚀');
+  // Phase 2: setelah onboarding → tampilkan login bila server terpasang
+  if (Auth.ok && !Auth.session){
+    updateChip('Masuk');
+    $('auth').style.display='flex';
+  }
 }
 
 // waktu util
@@ -467,6 +472,54 @@ function renderAll(){
   preset=S.preset||25; dur=preset*60; sisa=dur;
 }
 
+// ---------- SINKRON CHIP (Phase 2 happy-path states) ----------
+// States: 'Lokal' (no server config) · 'Masuk' (needs session) ·
+// '<Identity>…' (syncing) · '<Identity> ✓' ok · '<Identity> ⚠️' error
+function updateChip(mode) {
+  const el = $('sync-chip'); if (!el) return;
+  el.textContent = mode;
+}
+function syncChipTap(){
+  if (Auth.ok && Auth.session && !Auth.identity /* not yet logged */) { tab('set'); return; }
+  if (Auth.ok && Auth.session) manualSync(); else tab('set');
+}
+
+async function manualSync(){
+  if (!Auth.ok || !Auth.session) { toast('Belum masuk akun — chip tidak aktif'); tab('set'); return; }
+  updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
+  try {
+    const r = await Sync.syncNow();
+    if (r && r.ok) { updateChip((Auth.identity && Auth.identity.role || '') + ' ✓'); toast('Sinkron selesai' + (r.pulled !== undefined ? ' — ' + r.pulled + ' perubahan' : '') + ' ✓'); await hydrate(); renderAll(); }
+    else updateChip('Sinkron');
+  } catch (e) {
+    updateChip('Sinkron ⚠️');
+    toast('Sinkron gagal: ' + (e.message || e));
+  }
+}
+
+// ---------- LOGIN (Phase 2, FR-01 identity binding server-side) ----------
+async function doLogin(){
+  const btn=$('li-btn'), err=$('li-err');
+  err.textContent='';
+  const email=$('li-email').value.trim(), pass=$('li-pass').value;
+  if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
+    err.textContent='Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    return;
+  }
+  btn.disabled=true; btn.textContent='Memverifikasi…';
+  try{
+    const idty = await Auth.login(email, pass);
+    $('auth').style.display='none';
+    toast('Masuk sebagai ' + (idty.role || idty.email) + ' ✓');
+    updateChip((idty.role || 'Sinkron') + '…');
+    await manualSync();
+  }catch(e){
+    err.textContent = (e && e.message || 'Masuk gagal').replace(/^AuthApiError:? */,'');
+  }finally{
+    btn.disabled=false; btn.textContent='Masuk 🔓';
+  }
+}
+
 (async function boot(){
   try{
     // tunggu bridge Capacitor (native-bridge injects before user scripts,
@@ -487,6 +540,22 @@ function renderAll(){
     return;
   }
   if(!S.ob){ $('ob').style.display='flex'; } else { renderAll(); }
+
+  // ---- Phase 2: session restore + first happy-path sync -----------
+  updateChip('Lokal');
+  if (await Auth.initClient()) {
+    const idty = await Auth.restore();
+    if (!S.ob) {
+      updateChip('Masuk'); // belum onboarding: login setelah onboarding
+      $('auth').style.display='none';
+    } else if (idty) {
+      updateChip((idty.role || 'Sinkron') + '…');
+      await manualSync();
+    } else {
+      updateChip('Masuk');
+      $('auth').style.display='flex';
+    }
+  }
 })();
 
 // info pembaruan versi

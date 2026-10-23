@@ -147,6 +147,27 @@ const LocalDb = {
   async tasksAll() {
     return this.all('SELECT id, title, subject, done, due, created_at FROM tasks WHERE space_id=? AND deleted_at IS NULL ORDER BY created_at DESC', [SP()]);
   },
+  // full local tasks including tombstones (Phase 2 push mirror)
+  async tasksAllRaw() {
+    return this.all('SELECT id, title, subject, done, due, created_at, updated_at, deleted_at FROM tasks', [SP()]);
+  },
+  // server row -> local upsert (times: ISO ms strings => epoch millis)
+  async applyRemote(entity, row) {
+    if (entity !== 'tasks') return; // Phase 2 happy-path scope
+    const toMs = v => (typeof v === 'number' ? v : (v ? Date.parse(v) : Date.now()));
+    const done = row.done === true || row.done === 1;
+    await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at,deleted_at)
+                    VALUES (?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(id) DO UPDATE SET
+                      subject=excluded.subject, done=excluded.done, due=excluded.due,
+                      updated_at=excluded.updated_at, deleted_at=excluded.deleted_at`,
+      [row.id, SP(), row.title, row.subject, done ? 1 : 0, row.due || '', toMs(row.created_at), toMs(row.updated_at), row.deleted_at ? toMs(row.deleted_at) : null]);
+  },
+  async applyRemoteDelete(entity, id) {
+    if (entity !== 'tasks') return;
+    await this.all('UPDATE tasks SET deleted_at=? WHERE id=?', [Date.now(), id]);
+  },
+  // push uses id+subject+timestamps; created/updated kept as millis
   async taskAdd(t) {
     const id = this.uid(), now = Date.now();
     await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at) VALUES (?,?,?,0,?,?,?,?)`,
@@ -157,7 +178,7 @@ const LocalDb = {
     await this.all('UPDATE tasks SET done=?, updated_at=? WHERE id=?', [done ? 1 : 0, Date.now(), id]);
   },
   async taskDel(id) {
-    await this.all('UPDATE tasks SET deleted_at=? WHERE id=?', [Date.now(), id]);
+    await this.all('UPDATE tasks SET deleted_at=?, updated_at=? WHERE id=?', [Date.now(), Date.now(), id]);
   },
 
   // ---- focus ------------------------------------------------------
