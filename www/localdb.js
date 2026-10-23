@@ -83,7 +83,7 @@ const LocalDb = {
     const row = await this.one("SELECT id FROM spaces WHERE kind='personal' LIMIT 1");
     if (row) { _spaceId = row.id; await this.exec(`INSERT OR REPLACE INTO meta (k,v) VALUES ('space_id','${row.id}')`); return _spaceId; }
     _spaceId = this.uid();
-    await this.all(`INSERT INTO spaces (id,kind,owner_id,name,created_at) VALUES (?,?,?,?)`,
+    await this.all(`INSERT INTO spaces (id,kind,owner_id,name,created_at) VALUES (?,?,?,?,?)`,
       [_spaceId, 'personal', _spaceId, ownerName || 'local', Date.now()]);
     await this.all(`INSERT OR REPLACE INTO meta (k,v) VALUES ('space_id',?)`, [_spaceId]);
     return _spaceId;
