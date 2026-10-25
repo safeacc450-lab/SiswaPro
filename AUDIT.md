@@ -213,3 +213,21 @@ code, and the uncommitted-drift defect list above still stands):
 
 ## Not verified on device (external)
 - Ob step-2 UI, pick/remove/rename/teacher flows, migration v2 on an existing install — require manual device run of APK versionCode 7.
+
+
+---
+
+# Audit 2026-10-26 — mandatory-email dependency (2.0-mvp4)
+
+## Verdict
+- `LEA_EMAIL` / `VIOLET_EMAIL` in `vendor/supabase-config.js` are **placeholders for a display-only persona mapping** (`Auth.identify` → role name/theme/chip). They are NOT used for authorization anywhere — server auth is `auth.uid()` + RLS (0003 member_self_insert). No local feature (onboarding, subjects, PR, jadwal, focus, settings) reads accounts config.
+- The real forced-email path was the **login overlay**: `boot()` restored a session-less user → `$('auth').style.display='flex'`, and `obFinish()` auto-opened login after onboarding. That blocked offline use behind auth.
+
+## Changed (smallest fix)
+- `boot()`: no-session restore now sets chip `Masuk` / `Lokal` — login opens only via the account card button ("Masuk / Buat Akun") or chip tap.
+- `obFinish()`: auto-open login removed (toast flow unchanged).
+- `Auth.identify()`: email-format guard — placeholder/garbage strings can never fabricate a persona; mapping still only works with real configured emails (explicit setup step, documented in docs/supabase-setup-guide.md §4 for Lea/Violet spaces + shared "Rumah").
+- versionCode 8 / 2.0-mvp4.
+
+## Regression tests
+- `tests/auth-tests.js` (new, wired into `npm test`): placeholders never match, garbage never fabricates a role, strangers get `role:null`, no secrets in client config. Full suite 35 checks — all pass.

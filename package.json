@@ -3,7 +3,7 @@
   "version": "2.0.0-mvp3",
   "private": true,
   "scripts": {
-    "test": "node tests/run-tests.js",
+    "test": "node tests/run-tests.js && node tests/auth-tests.js",
     "sync": "node node_modules/@capacitor/cli/bin/capacitor sync android"
   },
   "dependencies": {

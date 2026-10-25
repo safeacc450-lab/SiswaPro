@@ -174,10 +174,7 @@ async function obFinish(skip){
   $('ob-2').style.display='none'; $('ob-1').style.display='block';
   renderAll();
   toast('Selamat belajar, '+S.nama+'! 🚀');
-  if (Auth.ok && !Auth.session){
-    updateChip('Masuk');
-    $('auth').style.display='flex';
-  }
+  // login TIDAK dipaksa setelah onboarding — pintu: kartu akun + chip sinkron
 }
 
 // waktu util
@@ -187,15 +184,15 @@ function hariIni(){ return HARI[new Date().getDay()]; }
 // ---------- BERANDA ----------
 const QUOTES = [
   'Belajar sedikit tapi rutin lebih kuat dari belajar banyak tapi sekali.',
-  'Ujian tidak menguji hafalanmu, tapi kebiasaan muat belajarmu.',
+  'Ujian tidak menguji hafalanmu, tapi kebiasaan belajarmu.',
   'Catat ulang dengan bahasamu sendiri — itu cara tercepat paham.',
   'Sedikit demi sedikit lama-lama jadi buku. Belajar pun begitu.',
-  'Fokus 25 menit itu ajib, karena menang lawan rasa malas.',
-  'Jadwal yang baik tertib membuat lelah lebih terdistribusi.',
-  'Kerjakan PR paling tidak disukai duluan. Itu disiplin.',
+  'Fokus 25 menit itu keren — kamu menang lawan rasa malas.',
+  'Jadwal yang teratur membuat beban belajar terbagi rata.',
+  'Kerjakan tugas yang paling tidak disukai duluan. Itu disiplin.',
   'Nonton video tanpa mencatat = nonton hiburan, bukan belajar.',
   'Istirahat bagian dari belajar, bukan lawannya.',
-  'Kalau bingung tanyakan macam di mana tidak salah.',
+  'Kalau bingung, bertanya tidak pernah salah.',
   'Nilai sehat lahir dari kebiasaan rapi sejak hari-hari biasa.',
   'Perbandingan terbaik adalah dirimu kemarin.',
   'Meja yang rapi, pikiran pun rapi.',
@@ -397,14 +394,14 @@ function renderStreak(){
   let streak=0, d=new Date();
   if(dayMin(iso(d))===0) d.setDate(d.getDate()-1);
   while(dayMin(iso(d))>0){ streak++; d.setDate(d.getDate()-1); }
-  $('streak-sub').innerHTML = streak>0? ('🔥 Streak belajar: <b>'+streak+'</b> hari berturut-turut — jaga ya!') : 'Belajar fokus hari ini untuk mulai 🔥 streak!';
+  $('streak-sub').innerHTML = streak>0? ('🔥 Streak belajarmu: <b>'+streak+'</b> hari berturut-turut — pertahankan ya!') : 'Belajar fokus hari ini untuk memulai streak 🔥!';
 }
 
 // ---------- RAPOR ----------
 function hitung(){
   const t=+$('nt').value||0,u=+$('nu').value||0,a=+$('na').value||0;
   const tot=(t*.25)+(u*.35)+(a*.4);
-  const g=tot>=85?'A — Sangat Baik':tot>=75?'B — Baik':tot>=60?'C — Cukup, Ayok Lebih Giat':'D — Perlu Belajar Lagi';
+  const g=tot>=85?'A — Sangat baik':tot>=75?'B — Baik':tot>=60?'C — Cukup, ayo lebih giat':'D — Perlu belajar lagi';
   const col=tot>=75?'#16a34a':tot>=60?'#ea580c':'#dc2626';
   $('hasil-box').style.display='block';
   $('hasil-n').textContent=tot.toFixed(1);
@@ -417,7 +414,7 @@ function hitung(){
 // ---------- PENGATURAN ----------
 function simpanNama(){
   S.nama=$('in-nama').value.trim();
-  save().catch(persist); renderHome(); toast(S.nama? 'Sapaan diperbarui ✓':'Nama dikosongkan');
+  save().catch(persist); renderHome(); toast(S.nama? 'Nama disimpan ✓':'Nama dikosongkan');
 }
 // ---------- MATA PELAJARAN (katalog + custom, id-keyed) ----------
 // state katalog picker
@@ -425,7 +422,7 @@ let pickQ='', pickLevel=null;      // pickLevel: null=semua
 function mapelNames(){ return S.mapel.map(r=>r.name); }
 function renderMapelSelect(){
   const o=S.mapel.map(r=>'<option>'+esc(r.name)+'</option>').join('');
-  if($('in-mapel')) $('in-mapel').innerHTML=o||'<option value="">— Belum ada mapel, terisi otomatis —</option>';
+  if($('in-mapel')) $('in-mapel').innerHTML=o||'<option value="">Belum ada mapel — tambahkan dulu di Pengaturan</option>';
   if($('in-jd-mapel')) $('in-jd-mapel').innerHTML=o;
 }
 function renderMapelList(){
@@ -437,8 +434,7 @@ function renderMapelList(){
       <span class="swatch" style="background:${colorOf(r.name)}"></span>
       <span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</span>
       ${tid}
-      <span class="use-badge">${n} dipakai</span>
-      <button class="btn-ico" title="Ganti nama" onclick="renameMapel('${r.id}')">✏️</button>
+      <span class="use-badge">${n} dipakai</span>      <button class="btn-ico" title="Ganti nama" onclick="renameMapel('${r.id}')">✏️</button>
       <button class="btn-ico" onclick="delMapel('${r.id}')">🗑️</button>
     </div>`;
   }).join('') : '<div class="empty">Belum ada mapel. Ambil dari katalog atau buat sendiri!</div>';
@@ -467,15 +463,15 @@ function renderMapelPick(){
       <span style="flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</span>
       <button class="${on?'btn-ico':'btn-add2'}" onclick="${on?'removeCatalog':'addCatalog'}('${arg}')">${on?'− hapus':'+'}</button>
     </div>`;
-  }).join('') : '<div class="empty">Tidak ketemu di katalog? Buat sendiri di bawah \u{1F447}</div>';
+  }).join('') : '<div class="empty">Tidak ditemukan di katalog? Buat sendiri di bawah \u{1F447}</div>';
 }
 function pickLevelBtn(id,el){ pickLevel=id; document.querySelectorAll('#pick-levels .fchip').forEach(b=>b.classList.remove('on')); el.classList.add('on'); renderMapelPick(); }
 function pickQChange(el){ pickQ=el.value; renderMapelPick(); }
 async function addCatalog(name){
   name=SUBJECTS.normName(name);
-  if(SUBJECTS.isDupe(name,mapelNames())){ toast('Mapel sudah dipilih'); return; }
+  if(SUBJECTS.isDupe(name,mapelNames())){ toast('Mapel sudah ada'); return; }
   try{ const id=await LocalDb.subjectAdd(name); S.mapel.push({id,name,teacher:''}); mapelId[name]=id; renderMapelPick(); renderMapelList(); renderMapelSelect(); toast('Mapel ditambahkan ✓'); }
-  catch(e){ toast(e.message||'Gagal menambah'); }
+  catch(e){ toast(e.message||'Gagal menambahkan mapel'); }
 }
 
 
@@ -498,7 +494,7 @@ async function tambahMapel(){
     renderMapelPick(); renderMapelList(); renderMapelSelect();
     toggleCustomForm();
     toast('Mapel sendiri ditambahkan ✓');
-  }catch(e){ toast(e.message||'Gagal menambah'); }
+  }catch(e){ toast(e.message||'Gagal menambahkan mapel'); }
 }
 async function renameMapel(id){
   const row=S.mapel.find(r=>r.id===id); if(!row) return;
@@ -512,7 +508,7 @@ async function renameMapel(id){
     await hydrate();       // tasks/schedule references moved by rename — re-sync state
     renderMapelPick(); renderMapelList(); renderMapelSelect(); renderPR(); renderJd(); renderHome();
     toast('Nama mapel diganti ✓');
-  }catch(e){ toast(e.message||'Gagal mengganti nama'); }
+  }catch(e){ toast(e.message||'Gagal mengganti nama mapel'); }
 }
 async function editTeacher(id){
   const row=S.mapel.find(r=>r.id===id); if(!row) return;
@@ -521,11 +517,11 @@ async function editTeacher(id){
   const tn=SUBJECTS.normName(t);
   await LocalDb.subjectSetTeacher(id, tn).catch(persist);
   row.teacher=tn; renderMapelList();
-  if(tn) toast('Guru disimpan ✓');
+  if(tn) toast('Nama guru disimpan ✓');
 }
 async function delMapel(id){
   const row=S.mapel.find(r=>r.id===id); if(!row) return;
-  if(!confirm('Hapus mapel "'+row.name+'"? Jadwal & PR yang memakainya tetap ada.')) return;
+  if(!confirm('Hapus mapel "'+row.name+'"? Jadwal dan tugas yang memakainya tetap ada.')) return;
   await LocalDb.subjectDel(id).catch(persist);
   S.mapel=S.mapel.filter(x=>x.id!==id); delete mapelId[row.name];
   renderMapelPick(); renderMapelList(); renderMapelSelect();
@@ -540,20 +536,20 @@ async function removeCatalog(name){
 function eksport(){
   LocalDb.exportAll().then(d=>{
     $('io-area').value=JSON.stringify(d);
-    toast('Data diekspor. Salin teksnya ke tempat aman ✓');
+    toast('Data diekspor. Salin teksnya ke tempat yang aman ✓');
   }).catch(()=>toast('Ekspor gagal — coba lagi'));
 }
 async function importData(){
   const v=$('io-area').value.trim();
   if(!v){ toast('Tempel dulu data cadangan ke kotak teks'); return; }
   let d;
-  try{ d=JSON.parse(v); }catch(e){ toast('Data tidak valid — cek tempelan'); return; }
+  try{ d=JSON.parse(v); }catch(e){ toast('Data tidak valid — periksa teksnya, lalu coba lagi'); return; }
 
   // format MVP (mvp1): export keys = DB rows (title/subject), import maps
   // ke signature lokal (t/m/due/done); fokus + settings ikut, kecuali
   // cursor sinkron (jangan menarik cursor perangkat lain)
   if(d && d._v==='mvp1'){
-    if(!Array.isArray(d.mapel)||!Array.isArray(d.jadwal)||!Array.isArray(d.tasks)) { toast('Struktur cadangan tidak lengkap'); return; }
+    if(!Array.isArray(d.mapel)||!Array.isArray(d.jadwal)||!Array.isArray(d.tasks)) { toast('Struktur cadangan tidak lengkap — datanya mungkin terpotong'); return; }
     for(const s of d.mapel||[]) await LocalDb.subjectAdd(s.name || String(s));
     for(const j of d.jadwal) await LocalDb.scheduleAdd(j);
     for(const t of d.tasks) {
@@ -562,7 +558,7 @@ async function importData(){
     }
     for(const k in (d.focus||{})) { const m=Number(d.focus[k]); if(m>0) await LocalDb.focusAdd(String(k), m|0); }
     for(const row of (d.settings||[])) if(SUBJECTS.filterImportSettings([row]).length) await LocalDb.setSetting(row.k, String(row.v));
-    toast('Data MVP dipulihkan ✓');
+    toast('Data dipulihkan ✓');
     location.reload();
     return;
   }
@@ -574,14 +570,14 @@ async function importData(){
     for(const h of (Array.isArray(d.hist)?d.hist:[])) if(h.d&&h.m) await LocalDb.focusAdd(String(h.d), Number(h.m)|0);
     if(d.nama) await LocalDb.setSetting('nama', String(d.nama));
     await LocalDb.setSetting('onboarded','1');
-    toast('Data v1.x dipulihkan (import satu arah) ✓');
+    toast('Data lama dipulihkan ✓');
     location.reload();
     return;
   }
   toast('Data tidak dikenali — ini bukan cadangan SiswaPro');
 }
 function resetAll(){
-  if(!confirm('YAKIN hapus SEMUA data (jadwal, PR, fokus, pengaturan)?')) return;
+  if(!confirm('Yakin hapus SEMUA data (mapel, jadwal, tugas, fokus, pengaturan)?')) return;
   if(!confirm('Konfirmasi terakhir: proses tidak bisa dibatalkan.')) return;
   LocalDb.wipe().then(()=>location.reload()).catch(()=>toast('Reset gagal — coba lagi'));
 }
@@ -613,7 +609,7 @@ function refreshIdentityCard(){
     av.textContent = (nmShow[0]||'?').toUpperCase();
     nm.textContent = nmShow + (role ? ' · ' + role : '');
     em.textContent = ses.email || '';
-    st.textContent = 'Sinkron aktif ✓ — PR kamu tersambung ke server.';
+    st.textContent = 'Sinkronisasi aktif ✓ — data kamu tersambung ke server.';
     lb.style.display=''; ln.style.display='none'; nt.style.display='';
     lb.onclick=async ()=>{
       if(!confirm('Keluar dari akun di aplikasi ini?')) return;
@@ -625,9 +621,8 @@ function refreshIdentityCard(){
   } else {
     av.textContent='?';
     nm.textContent='Belum masuk';
-    em.textContent='Masuk untuk menyinkronkan PR';
-    st.textContent = S.nama ? 'Mode lokal: '+S.nama+' — data hanya di perangkat.'
-                            : 'Mode lokal — data hanya di perangkat ini.';
+    em.textContent='Masuk untuk menyinkronkan data tugas';
+    st.textContent = 'Mode lokal. Data tersimpan di perangkat ini.';
     lb.style.display='none'; ln.style.display=''; nt.style.display='none';
     ln.onclick=()=>{ $('auth').style.display='flex'; window.scrollTo(0,0); };
   }
@@ -658,16 +653,26 @@ function syncChipTap(){
 }
 
 async function manualSync(){
-  if (!Auth.ok || !Auth.session) { toast('Belum masuk akun — chip tidak aktif'); tab('set'); return; }
+  if (!Auth.ok || !Auth.session) { toast('Masuk dulu untuk menyinkronkan data'); tab('set'); return; }
   updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
   try {
     const r = await Sync.syncNow();
-    if (r && r.ok) { updateChip((Auth.identity && Auth.identity.role || '') + ' ✓'); toast('Sinkron selesai' + (r.pulled !== undefined ? ' — ' + r.pulled + ' perubahan' : '') + ' ✓'); await hydrate(); renderAll(); }
+    if (r && r.ok) { updateChip((Auth.identity && Auth.identity.role || '') + ' ✓'); toast('Sinkronisasi selesai ✓' + (r.pulled !== undefined && r.pulled ? ' — ' + r.pulled + ' perubahan diterima' : '')); await hydrate(); renderAll(); }
+    else if (r && r.reason === 'offline') { updateChip('Sinkron ⚠️'); toast('Sedang offline — sinkronisasi menunggu koneksi internet.'); }
     else updateChip('Sinkron');
   } catch (e) {
     updateChip('Sinkron ⚠️');
-    toast('Sinkron gagal: ' + (e.message || e));
+    toast(syncErrMsg(e));
   }
+}
+// pesan jawab user, bukan log internal (HTTP dump / token dsb tidak boleh bocor)
+function syncErrMsg(e){
+  const m = String((e && e.message) || e || '');
+  if (!navigator.onLine) return 'Sedang offline — sinkronisasi menunggu koneksi internet.';
+  if (/fetch|network|timeout|aborted/i.test(m)) return 'Sinkronisasi gagal — periksa koneksi internet, lalu coba lagi.';
+  if (/session expired|REAUTH|auth/i.test(m)) return 'Sesi masuk habis — masuk lagi, lalu coba sinkronisasi.';
+  if (/HTTP 40[13]/.test(m)) return 'Sesi masuk tidak berlaku — keluar lalu masuk lagi ke akun.';
+  return 'Sinkronisasi gagal — coba lagi.';
 }
 
 // ---------- LOGIN/SIGNUP (Phase 2; self-serve accounts signed-off
@@ -679,7 +684,7 @@ function renderAuthMode(){
   const t = $('auth-t'), p = $('auth-p'), btn = $('li-btn'), lnk = $('li-mode');
   if (t) t.textContent = signup ? 'Buat akun SiswaPro' : 'Selamat datang kembali!';
   if (p) p.textContent = signup
-    ? 'Daftar dengan email untuk menjaga catatan belajarmu lintas perangkat. Password minimal 6 karakter.'
+    ? 'Daftar dengan email untuk menjaga catatan belajarmu lintas perangkat. Kata sandi minimal 6 karakter.'
     : 'Masuk untuk melanjutkan catatan belajarmu. Data tetap tersimpan aman di perangkat ini.';
   if (btn) btn.textContent = AUTH_LBL[authMode];
   if (lnk) lnk.textContent = signup ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar';
@@ -716,16 +721,17 @@ async function spGoogle(){
   const err = $('li-err'), btn = $('lp-google');
   err.textContent = '';
   if (!Auth.ok && !(await Auth.initClient())) {
-    err.textContent = 'Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    err.textContent = 'Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
     return;
   }
   btn.disabled = true;
   try {
     await Auth.google();
     // alur lanjut di browser Google → balik via siswapro://auth/callback
-    toast('Menunggu Google… selesai di browser lalu balik otomatis ✓');
+    toast('Membuka Google… selesaikan di browser, lalu kamu kembali otomatis.');
   } catch (e) {
-    err.textContent = (e && e.message || 'Google gagal').replace(/^AuthApiError:? */,'');
+    const m = String(e && e.message || '').replace(/^AuthApiError:? */,'');
+    err.textContent = m || 'Gagal membuka Google — coba lagi.';
   } finally {
     btn.disabled = false;
   }
@@ -739,14 +745,15 @@ async function spForgot(){
     return;
   }
   if (!Auth.ok && !(await Auth.initClient())) {
-    err.textContent = 'Server belum dikonfigurasi — pemulihan akun butuh fase 2.';
+    err.textContent = 'Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
     return;
   }
   try {
     await Auth.requestReset(email);
-    toast('Tautan reset dikirim ke ' + email + ' — buka di HP ini, lalu Masuk lagi.');
+    toast('Tautan reset dikirim ke ' + email + ' — buka tautannya di HP ini, lalu masuk lagi.');
   } catch (e) {
-    err.textContent = (e && e.message || 'Gagal mengirim tautan reset.');
+    const m = String(e && e.message || '').replace(/^AuthApiError:? */,'');
+    err.textContent = m || 'Gagal mengirim tautan reset.';
   }
 }
 function spLegal(name){ toast(name + ' akan tersedia di rilis berikutnya.'); }
@@ -756,12 +763,12 @@ async function doLogin(){
   err.textContent='';
   const email=$('li-email').value.trim(), pass=$('li-pass').value;
   if(!email.includes('@')){
-    err.textContent='Gunakan alamat email kamu (format nama@contoh.com).';
+    err.textContent='Isi alamat email kamu, mis. nama@contoh.com.';
     return;
   }
   if(!pass){ err.textContent='Masukkan kata sandi.'; return; }
   if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
-    err.textContent='Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    err.textContent='Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
     return;
   }
   btn.disabled=true; btn.textContent='Memverifikasi…';
@@ -786,11 +793,11 @@ async function doSignup(){
   err.textContent='';
   const email=$('li-email').value.trim(), pass=$('li-pass').value;
   if(!email.includes('@') || pass.length < 6){
-    err.textContent='Isi email yang valid dan password minimal 6 karakter.';
+    err.textContent='Isi email yang valid dan kata sandi minimal 6 karakter.';
     return;
   }
   if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
-    err.textContent='Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    err.textContent='Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
     return;
   }
   btn.disabled=true; btn.textContent='Membuat akun…';
@@ -803,7 +810,7 @@ async function doSignup(){
     updateChip((idty.role || 'Sinkron') + '…');
     await manualSync();
   }catch(e){
-    err.textContent = (e && e.message || 'Pendaftaran gagal').replace(/^AuthApiError:? */,'');
+    err.textContent = (e && e.message || 'Pendaftaran gagal — coba lagi.').replace(/^AuthApiError:? */,'');
   }finally{
     btn.disabled=false; btn.textContent=AUTH_LBL.signup;
   }
@@ -822,8 +829,8 @@ async function doSignup(){
     await LocalDb.ensurePersonalSpace(S.nama);
     await hydrate();
   }catch(e){
-    $('ob').innerHTML = '<div class="obcard"><h1 class="ob-t">Database gagal dibuka</h1><p class="ob-p">'+
-      'Penyimpanan lokal (SQLite) tidak tersedia: '+esc(String(e&&e.message||e))+
+    $('ob').innerHTML = '<div class="obcard"><h1 class="ob-t">Penyimpanan gagal dibuka</h1><p class="ob-p">'+
+      'Penyimpanan lokal tidak tersedia: '+esc(String(e&&e.message||e))+
       '. Coba tutup dan buka aplikasi lagi.</p></div>';
     $('ob').style.display='flex';
     return;
@@ -866,17 +873,15 @@ async function doSignup(){
   if (await Auth.initClient()) {
     const idty = await Auth.restore();
     if (!S.ob) {
-      updateChip('Masuk'); // belum onboarding: login setelah onboarding
-      $('auth').style.display='none';
-    } else if (idty) {
-      personaTheme(idty);
-      updateChip((idty.role || 'Sinkron') + '…');
-      await manualSync();
-    } else {
-      updateChip('Masuk');
-      $('auth').style.display='flex';
-    }
+    updateChip('Lokal'); // belum onboarding: login opsional, kartu akun lebih dulu
+  } else if (idty) {
+    personaTheme(idty);
+    updateChip((idty.role || 'Sinkron') + '…');
+    await manualSync();
+  } else {
+    updateChip('Masuk'); // login TIDAK dipaksa — kartu akun + chip jadi pintu
   }
+}
 
   // auto-sync: saat koneksi balik & saat app dibuka lagi (jika sudah masuk)
   try {
@@ -892,7 +897,7 @@ async function doSignup(){
 })();
 
 // info pembaruan versi
-const VER='2.0-mvp3';
+const VER='2.0-mvp4';
 if(localStorage.getItem('sp_ver')!==VER){
   localStorage.setItem('sp_ver',VER);
 }

@@ -80,8 +80,13 @@ const Auth = {
 
   identify(email) {
     const acc = (window.SUPABASE_CONFIG || {}).accounts || {};
+    const mail = String(email || '').toLowerCase();
+    // email format guard: placeholders (LEA_EMAIL etc.) or garbage
+    // must never fabricate a persona — identity comes from real signin
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { role: null, email };
     for (const role of ['lea', 'violet']) {
-      if (acc[role] && acc[role].toLowerCase() === String(email).toLowerCase()) {
+      if (acc[role] && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acc[role]) &&
+          String(acc[role]).toLowerCase() === mail) {
         return { role: role === 'lea' ? 'Lea' : 'Violet', email };
       }
     }
@@ -89,7 +94,7 @@ const Auth = {
   },
 
   async login(email, password) {
-    if (!this.ok) throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
+    if (!this.ok) throw new Error('Masuk online belum tersedia — coba lagi nanti.');
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error) throw error;
     this.session = data.session;
@@ -103,7 +108,7 @@ const Auth = {
   // Recovery link lands on siswapro://auth/callback with session tokens —
   // handleUrl() below exchanges them for a persisted session.
   async requestReset(email) {
-    if (!this.ok) throw new Error('Server belum dikonfigurasi (fase 2).');
+    if (!this.ok) throw new Error('Server belum siap — pemulihan kata sandi belum tersedia.');
     const { error } = await this.client.auth.resetPasswordForEmail(email, {
       redirectTo: 'siswapro://auth/callback'
     });
@@ -111,14 +116,14 @@ const Auth = {
   },
 
   async signup(email, password) {
-    if (!this.ok) throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
+    if (!this.ok) throw new Error('Pendaftaran online belum tersedia — coba lagi nanti.');
     const { data, error } = await this.client.auth.signUp({
       email, password,
       options: { emailRedirectTo: 'siswapro://auth/callback' }
     });
     if (error) throw error;
     if (!data.session) {
-      throw new Error('Cek email kamu: tautan konfirmasi sudah dikirim — buka di HP ini, lalu Masuk di sini.');
+      throw new Error('Tautan konfirmasi dikirim ke email kamu — buka di HP ini, lalu masuk di sini.');
     }
     this.session = data.session;
     this.identity = this.identify(email || (data.user && data.user.email));
@@ -131,15 +136,15 @@ const Auth = {
   // by Auth.handleUrl (schema registered in AndroidManifest).
   async google() {
     if (!this.ok && !(await this.initClient()))
-      throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
+      throw new Error('Masuk dengan Google belum tersedia — coba lagi nanti.');
     const P = window.Capacitor && window.Capacitor.Plugins.Browser;
-    if (!P) throw new Error('Browser plugin tidak tersedia — perbarui aplikasi.');
+    if (!P) throw new Error('Tidak bisa membuka browser — perbarui aplikasimu.');
     const { data, error } = await this.client.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: 'siswapro://auth/callback', skipBrowserRedirect: true }
     });
     if (error) throw error;
-    if (!data || !data.url) throw new Error('URL Google tidak diperoleh — coba lagi.');
+    if (!data || !data.url) throw new Error('Gagal menyiapkan Google — coba lagi.');
     await P.open({ url: data.url });
     return true;
   },
