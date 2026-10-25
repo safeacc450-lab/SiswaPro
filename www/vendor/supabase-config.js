@@ -8,7 +8,7 @@ window.SUPABASE_CONFIG = {
   url: 'https://atqfatnivxzzzibtqxzg.supabase.co',
   anonKey: 'sb_publishable_Ph3nfb8zPwvQMMJGGnFRPA_d21r7fPQ',
   accounts: {
-    lea:    'safeacc450@gmail.com',  // registered 2026-10-25 (email+google linked)
-    violet: 'VIOLET_EMAIL'           // not registered yet — will be the second user
+    lea:    'LEA_EMAIL',             // real email to be pasted once Lea signs up
+    violet: 'VIOLET_EMAIL'           // real email to be pasted once Violet signs up
   }
 };
