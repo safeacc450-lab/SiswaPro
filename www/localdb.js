@@ -170,7 +170,7 @@ const LocalDb = {
   // push uses id+subject+timestamps; created/updated kept as millis
   async taskAdd(t) {
     const id = this.uid(), now = Date.now();
-    await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at) VALUES (?,?,?,0,?,?,?,?)`,
+    await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at) VALUES (?,?,?,?,0,?,?,?)`,
       [id, SP(), t.t, t.m, t.due || '', now, now]);
     return id;
   },

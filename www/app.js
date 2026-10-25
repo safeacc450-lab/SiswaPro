@@ -53,7 +53,7 @@ async function hydrate(){
   S.nama  = kv.nama || '';
   S.preset= Number(kv.preset) || 25;
   S.accent= Number(kv.accent) || 0;
-  S.dark  = kv.dark === '1';
+  S.dark  = kv.dark === '1' ? true : kv.dark === 'b' ? 'black' : false;
 
   const subs = await LocalDb.subjectsAll();
   S.mapel = subs.map(r=>r.name);
@@ -74,7 +74,7 @@ function save(){
     LocalDb.setSetting('nama', S.nama),
     LocalDb.setSetting('preset', S.preset),
     LocalDb.setSetting('accent', S.accent),
-    LocalDb.setSetting('dark', S.dark?'1':'0'),
+    LocalDb.setSetting('dark', S.dark===false?'0':S.dark==='black'?'b':'1'),
     LocalDb.setSetting('quote_i', S.quoteI||0)
   ]);
 }
@@ -82,11 +82,20 @@ const persist = err => { if(err) console.error('persist failed', err); };
 
 // ---------- tema ----------
 const THEMES = [
-  {a:'#4f46e5',a2:'#7c3aed',soft:'#e0e7ff',text:'#4338ca',bar:'#4f46e5'},
-  {a:'#0284c7',a2:'#0891b2',soft:'#cffafe',text:'#0e7490',bar:'#0891b2'},
+  // persona: Lea = blue, Violet = violet (favorit mereka, 2026-10-24);
+  // biru selaras palet login (#2563eb family)
+  {a:'#2563eb',a2:'#1d4ed8',soft:'#dbeafe',text:'#1e40af',bar:'#2563eb'},
+  {a:'#7c3aed',a2:'#6d28d9',soft:'#ede9fe',text:'#5b21b6',bar:'#7c3aed'},
   {a:'#16a34a',a2:'#0d9488',soft:'#dcfce7',text:'#166534',bar:'#16a34a'},
   {a:'#e11d48',a2:'#f43f5e',soft:'#ffe4e6',text:'#9f1239',bar:'#e11d48'}
 ];
+// persona-driven accent (dipanggil setelah identity diketahui)
+function personaTheme(idty){
+  if (!idty || !idty.role) return;
+  const i = idty.role === 'Lea' ? 0 : idty.role === 'Violet' ? 1 : null;
+  if (i === null || S.accent === i) return;
+  S.accent = i; applyAcc(i); save().catch(persist);
+}
 function applyAcc(i){
   S.accent=i; const t=THEMES[i], r=document.documentElement.style;
   r.setProperty('--a',t.a); r.setProperty('--a2',t.a2);
@@ -603,6 +612,7 @@ async function doLogin(){
   btn.disabled=true; btn.textContent='Memverifikasi…';
   try{
     const idty = await Auth.login(email, pass);
+    personaTheme(idty);
     $('auth').style.display='none';
     toast('Masuk sebagai ' + (idty.role || idty.email) + ' ✓');
     updateChip((idty.role || 'Sinkron') + '…');
@@ -632,6 +642,7 @@ async function doSignup(){
   try{
     await Auth.initClient();
     const idty = await Auth.signup(email, pass);
+    personaTheme(idty);
     $('auth').style.display='none';
     toast('Akun dibuat — selamat datang, ' + (idty.role || idty.email) + ' ✓');
     updateChip((idty.role || 'Sinkron') + '…');
@@ -689,6 +700,7 @@ async function doSignup(){
         const landed = await Auth.handleUrl(launch.url);
         if (landed) {
           $('auth').style.display = 'none';
+          personaTheme(Auth.identity);
           updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
           toast('Email terkonfirmasi — masuk otomatis ✓');
           await manualSync();
@@ -702,6 +714,7 @@ async function doSignup(){
       updateChip('Masuk'); // belum onboarding: login setelah onboarding
       $('auth').style.display='none';
     } else if (idty) {
+      personaTheme(idty);
       updateChip((idty.role || 'Sinkron') + '…');
       await manualSync();
     } else {
