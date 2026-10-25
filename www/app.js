@@ -548,9 +548,23 @@ function spTogglePass(){
     b.setAttribute('aria-label', show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
   }
 }
-function spGoogle(){
-  const err = $('li-err');
-  if (err) err.textContent = 'Masuk Google belum aktif — butuh OAuth Google (client ID) + provider Google di Supabase. Sementara: masuk dengan email & kata sandi.';
+async function spGoogle(){
+  const err = $('li-err'), btn = $('lp-google');
+  err.textContent = '';
+  if (!Auth.ok && !(await Auth.initClient())) {
+    err.textContent = 'Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
+    return;
+  }
+  btn.disabled = true;
+  try {
+    await Auth.google();
+    // alur lanjut di browser Google → balik via siswapro://auth/callback
+    toast('Menunggu Google… selesai di browser lalu balik otomatis ✓');
+  } catch (e) {
+    err.textContent = (e && e.message || 'Google gagal').replace(/^AuthApiError:? */,'');
+  } finally {
+    btn.disabled = false;
+  }
 }
 async function spForgot(){
   const err = $('li-err');

@@ -44,7 +44,13 @@ const Auth = {
     if (!P) { console.warn('SecureStorage plugin missing — sync stays off (ADR-6)'); return false; }
     const cfg = window.SUPABASE_CONFIG;
     this.client = window.supabase.createClient(cfg.url, cfg.anonKey, {
-      auth: { storage: this.storageAdapter(), persistSession: true, autoRefreshToken: true }
+      auth: {
+        storage: this.storageAdapter(), persistSession: true,
+        autoRefreshToken: true,
+        // implicit: OAuth + email-confirm deep links land as
+        // #access_token/refresh_token — matches Auth.handleUrl parsing
+        flowType: 'implicit'
+      }
     });
     this.ok = true;
     return true;
@@ -95,6 +101,25 @@ const Auth = {
     this.session = data.session;
     this.identity = this.identify(email || (data.user && data.user.email));
     return this.identity;
+  },
+
+  // Google OAuth (provider enabled live 2026-10-24). Implicit flow →
+  // callback returns fragment tokens; open system browser via
+  // @capacitor/browser; landing 'siswapro://auth/callback' is handled
+  // by Auth.handleUrl (schema registered in AndroidManifest).
+  async google() {
+    if (!this.ok && !(await this.initClient()))
+      throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
+    const P = window.Capacitor && window.Capacitor.Plugins.Browser;
+    if (!P) throw new Error('Browser plugin tidak tersedia — perbarui aplikasi.');
+    const { data, error } = await this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: 'siswapro://auth/callback', skipBrowserRedirect: true }
+    });
+    if (error) throw error;
+    if (!data || !data.url) throw new Error('URL Google tidak diperoleh — coba lagi.');
+    await P.open({ url: data.url });
+    return true;
   },
 
   // deep-link landing for the auth email (emailRedirectTo). The Supabase
