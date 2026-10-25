@@ -425,12 +425,23 @@ async function importData(){
   let d;
   try{ d=JSON.parse(v); }catch(e){ toast('Data tidak valid — cek tempelan'); return; }
 
-  // format MVP (mvp1)
+  // format MVP (mvp1): export keys = DB rows (title/subject), import maps
+  // ke signature lokal (t/m/due/done); fokus + settings ikut, kecuali
+  // cursor sinkron (jangan menarik cursor perangkat lain)
   if(d && d._v==='mvp1'){
     if(!Array.isArray(d.mapel)||!Array.isArray(d.jadwal)||!Array.isArray(d.tasks)) { toast('Struktur cadangan tidak lengkap'); return; }
+    for(const s of d.mapel||[]) await LocalDb.subjectAdd(s.name || String(s));
     for(const j of d.jadwal) await LocalDb.scheduleAdd(j);
-    for(const t of d.tasks) await LocalDb.taskAdd(t);
-    for(const s of d.mapel||[]) await LocalDb.subjectAdd(s.name);
+    for(const t of d.tasks) {
+      const id = await LocalDb.taskAdd({ t: t.title || t.t, m: t.subject || t.m, due: t.due || '' });
+      if (t.done) await LocalDb.taskSetDone(id, true);
+    }
+    for(const k in (d.focus||{})) { const m=Number(d.focus[k]); if(m>0) await LocalDb.focusAdd(String(k), m|0); }
+    for(const row of (d.settings||[])) {
+      if(!row || !row.k) continue;
+      if(row.k==='server_space'||row.k==='feed_cursor') continue;
+      await LocalDb.setSetting(row.k, String(row.v));
+    }
     toast('Data MVP dipulihkan ✓');
     location.reload();
     return;
@@ -470,12 +481,25 @@ function tab(target){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// ---------- IDENTITAS (FR-01 Phase 1: profil lokal; binding akun server = Phase 2) ----------
+// ---------- IDENTITAS (profil lokal + akun server) ----------
 function refreshIdentityCard(){
   const el=$('identity-status'); if(!el) return;
-  el.textContent = S.nama
-    ? 'Profil lokal aktif: '+S.nama+'.'
-    : 'Nama belum diisi — profil lokal belum lengkap.';
+  const ses = (window.Auth && Auth.session) ? Auth.session.user : null;
+  if (ses) {
+    el.textContent = 'Masuk sebagai ' + (ses.email||'?') +
+      (S.nama ? ' · profil: '+S.nama : '') + ' · sinkron aktif ✓';
+    const b=$('acc-logout'); if(b){ b.style.display=''; b.onclick=async ()=>{
+      if(!confirm('Keluar dari akun ini di aplikasi?')) return;
+      if (Auth.logout) await Auth.logout(); else { try{ await Auth.client.auth.signOut(); }catch(e){} Auth.session=null; Auth.identity=null; }
+      toast('Keluar ✓'); updateChip('Masuk');
+      b.style.display='none'; refreshIdentityCard();
+    }; }
+  } else {
+    el.textContent = S.nama
+      ? 'Profil lokal aktif: '+S.nama+'. Masuk untuk sinkron.'
+      : 'Nama belum diisi — masuk & lengkapi profil.';
+    const b=$('acc-logout'); if(b){ b.style.display='none'; }
+  }
 }
 
 // ---------- INIT ----------
@@ -722,6 +746,18 @@ async function doSignup(){
       $('auth').style.display='flex';
     }
   }
+
+  // auto-sync: saat koneksi balik & saat app dibuka lagi (jika sudah masuk)
+  try {
+    const { Network } = Capacitor.Plugins;
+    Network.addListener('networkStatusChange', (st) => {
+      if (st.connected && Auth.session) manualSync().catch(()=>{});
+    });
+    const { App } = Capacitor.Plugins;
+    App.addListener('appStateChange', (st) => {
+      if (st.isActive && Auth.session) manualSync().catch(()=>{});
+    });
+  } catch (e) { console.warn('autolisten unavailable', e); }
 })();
 
 // info pembaruan versi

@@ -159,7 +159,7 @@ const LocalDb = {
     await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at,deleted_at)
                     VALUES (?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(id) DO UPDATE SET
-                      subject=excluded.subject, done=excluded.done, due=excluded.due,
+                      title=excluded.title, subject=excluded.subject, done=excluded.done, due=excluded.due,
                       updated_at=excluded.updated_at, deleted_at=excluded.deleted_at`,
       [row.id, SP(), row.title, row.subject, done ? 1 : 0, row.due || '', toMs(row.created_at), toMs(row.updated_at), row.deleted_at ? toMs(row.deleted_at) : null]);
   },

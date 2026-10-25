@@ -58,7 +58,7 @@ h3.t{font-size:15px;font-weight:900;letter-spacing:-.2px;color:var(--ink)}
 .btn-ico{background:transparent;border:0;font-size:15px;cursor:pointer;padding:6px;color:#f87171}
 
 /* inputs + primary pill (satu bahasa dengan .lp-submit login) */
-input,select{width:100%;padding:12px 14px;margin-top:9px;border-radius:13px;font:inherit;font-size:13.5px}
+input,select{width:100%;padding:12px 14px;margin-top:9px;border-radius:13px;font:inherit;font-size:13.5px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
 /* primary pill — satu bahasa dengan .lp-submit login */
 button.btn-primary{width:100%;padding:13px 16px;margin-top:9px;border:0;border-radius:999px;
   font:inherit;font-size:13.5px;font-weight:800;color:#fff;cursor:pointer;
@@ -106,8 +106,8 @@ textarea{width:100%;padding:10px 12px;margin-top:9px;border:1.5px solid var(--li
 .acc{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer}
 .acc.on{border-color:var(--ink);box-shadow:0 0 0 3px var(--card),0 0 0 4px var(--line)}
 .ob-accs{display:flex;gap:10px;margin-top:8px}
-.acc1{background:linear-gradient(135deg,#4f46e5,#7c3aed)}
-.acc2{background:linear-gradient(135deg,#0284c7,#22d3ee)}
+.acc1{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+.acc2{background:linear-gradient(135deg,#7c3aed,#6d28d9)}
 .acc3{background:linear-gradient(135deg,#16a34a,#a3e635)}
 .acc4{background:linear-gradient(135deg,#e11d48,#fb7185)}
 
