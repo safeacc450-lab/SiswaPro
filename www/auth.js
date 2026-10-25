@@ -29,11 +29,25 @@ const Auth = {
   },
 
   storageAdapter() {
+    // RAW bridge surface only (verified against plugin.js): get(key) ->
+    // {data: string}, set(key, data), remove(key). The JS wrapper's
+    // getItem/setItem/removeItem are NOT part of the native proxy —
+    // calling them on window.Capacitor.Plugins.SecureStorage throws
+    // "P.setItem is not a function" (first hit: Google login 2026-10-24).
     const P = this.secure();
+    if (typeof P.set !== 'function') {
+      throw new Error('SecureStorage bridge tidak sesuai — tidak aman untuk token (ADR-6)');
+    }
     return {
-      getItem:  async k => { try { const r = await P.getItem(k); return r === undefined ? null : r; } catch (e) { return null; } },
-      setItem:  async (k, v) => { await P.setItem(k, v); },
-      removeItem: async k => { await P.removeItem(k); }
+      getItem: async k => {
+        try {
+          const r = await P.get(k);
+          const d = r && r.data;
+          return (d === undefined || d === null) ? null : d;
+        } catch (e) { return null; }
+      },
+      setItem: async (k, v) => { await P.set(k, String(v)); },
+      removeItem: async k => { try { await P.remove(k); } catch (e) {} }
     };
   },
 
@@ -41,19 +55,27 @@ const Auth = {
     if (this.client) return this.ok;
     if (!this.configured()) return false;
     const P = this.secure();
-    if (!P) { console.warn('SecureStorage plugin missing — sync stays off (ADR-6)'); return false; }
+    if (!P || typeof P.set !== 'function') {
+      console.warn('SecureStorage plugin/bridge missing — sync stays off (ADR-6)');
+      return false;
+    }
     const cfg = window.SUPABASE_CONFIG;
-    this.client = window.supabase.createClient(cfg.url, cfg.anonKey, {
-      auth: {
-        storage: this.storageAdapter(), persistSession: true,
-        autoRefreshToken: true,
-        // implicit: OAuth + email-confirm deep links land as
-        // #access_token/refresh_token — matches Auth.handleUrl parsing
-        flowType: 'implicit'
-      }
-    });
-    this.ok = true;
-    return true;
+    try {
+      this.client = window.supabase.createClient(cfg.url, cfg.anonKey, {
+        auth: {
+          storage: this.storageAdapter(), persistSession: true,
+          autoRefreshToken: true,
+          // implicit: OAuth + email-confirm deep links land as
+          // #access_token/refresh_token — matches Auth.handleUrl parsing
+          flowType: 'implicit'
+        }
+      });
+      this.ok = true;
+    } catch (e) {
+      console.warn('auth client init failed (secure storage?)', e);
+      this.ok = false;
+    }
+    return this.ok;
   },
 
   identify(email) {
