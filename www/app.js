@@ -481,24 +481,35 @@ function tab(target){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-// ---------- IDENTITAS (profil lokal + akun server) ----------
+// ---------- AKUN (pola aplikasi standar: avatar + nama + email + keluar) ----------
 function refreshIdentityCard(){
-  const el=$('identity-status'); if(!el) return;
+  const card=$('acc-card'); if(!card) return;
   const ses = (window.Auth && Auth.session) ? Auth.session.user : null;
+  const av=$('acc-avatar'), nm=$('acc-name'), em=$('acc-email'),
+        st=$('identity-status'), lb=$('acc-logout'), ln=$('acc-login'), nt=$('acc-note');
   if (ses) {
-    el.textContent = 'Masuk sebagai ' + (ses.email||'?') +
-      (S.nama ? ' · profil: '+S.nama : '') + ' · sinkron aktif ✓';
-    const b=$('acc-logout'); if(b){ b.style.display=''; b.onclick=async ()=>{
-      if(!confirm('Keluar dari akun ini di aplikasi?')) return;
+    const role = Auth.identity && Auth.identity.role;
+    const nmShow = S.nama || ses.user_metadata?.full_name || ses.email.split('@')[0];
+    av.textContent = (nmShow[0]||'?').toUpperCase();
+    nm.textContent = nmShow + (role ? ' · ' + role : '');
+    em.textContent = ses.email || '';
+    st.textContent = 'Sinkron aktif ✓ — PR kamu tersambung ke server.';
+    lb.style.display=''; ln.style.display='none'; nt.style.display='';
+    lb.onclick=async ()=>{
+      if(!confirm('Keluar dari akun di aplikasi ini?')) return;
       if (Auth.logout) await Auth.logout(); else { try{ await Auth.client.auth.signOut(); }catch(e){} Auth.session=null; Auth.identity=null; }
-      toast('Keluar ✓'); updateChip('Masuk');
-      b.style.display='none'; refreshIdentityCard();
-    }; }
+      toast('Keluar ✓'); updateChip('Masuk'); $('auth').style.display='flex';
+      $('acc-logout').style.display='none';
+      refreshIdentityCard();
+    };
   } else {
-    el.textContent = S.nama
-      ? 'Profil lokal aktif: '+S.nama+'. Masuk untuk sinkron.'
-      : 'Nama belum diisi — masuk & lengkapi profil.';
-    const b=$('acc-logout'); if(b){ b.style.display='none'; }
+    av.textContent='?';
+    nm.textContent='Belum masuk';
+    em.textContent='Masuk untuk menyinkronkan PR';
+    st.textContent = S.nama ? 'Mode lokal: '+S.nama+' — data hanya di perangkat.'
+                            : 'Mode lokal — data hanya di perangkat ini.';
+    lb.style.display='none'; ln.style.display=''; nt.style.display='none';
+    ln.onclick=()=>{ $('auth').style.display='flex'; window.scrollTo(0,0); };
   }
 }
 
