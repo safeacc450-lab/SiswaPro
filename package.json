@@ -1,9 +1,10 @@
 {
   "name": "siswapro",
-  "version": "1.0.0",
+  "version": "2.0.0-mvp3",
   "private": true,
   "scripts": {
-    "build": "node -e \"console.log('SiswaPro web assets ready')\""
+    "test": "node tests/run-tests.js",
+    "sync": "node node_modules/@capacitor/cli/bin/capacitor sync android"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.1",

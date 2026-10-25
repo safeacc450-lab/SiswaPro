@@ -11,20 +11,35 @@
 
 <!-- ONBOARDING -->
 <div id="ob" class="obwrap" style="display:none">
-  <div class="obcard">
+  <div class="obcard" id="ob-1">
     <div class="ob-ico">🎓</div>
-    <h1 class="ob-t">Selamat Datang di SiswaPro</h1>
-    <p class="ob-p">Asisten belajar kamu: catat PR, atur jam pelajaran, dan latih fokus. Mulai dengan kenalan dulu 👇</p>
+    <h1 class="ob-t">Selamat datang di SiswaPro</h1>
+    <p class="ob-p">Asisten belajar kamu: catat tugas, atur jam pelajaran, dan latih fokus. Mulai dengan kenalan dulu 👇</p>
     <label class="ob-fl">Siapa nama kamu?</label>
     <input id="ob-nama" placeholder="Contoh: Felix" maxlength="24">
-    <label class="ob-fl">Pilih favorit warna</label>
+    <label class="ob-fl">Pilih warna favorit</label>
     <div class="ob-accs">
       <button class="acc acc1 on" onclick="obPick(0,this)"></button>
       <button class="acc acc2" onclick="obPick(1,this)"></button>
       <button class="acc acc3" onclick="obPick(2,this)"></button>
       <button class="acc acc4" onclick="obPick(3,this)"></button>
     </div>
-    <button class="btn-primary" onclick="obDone()">Mulai Pakai 🚀</button>
+    <button class="btn-primary" onclick="obStep2()">Lanjut 🚀</button>
+  </div>
+  <div class="obcard" id="ob-2" style="display:none">
+    <div class="ob-ico">📚</div>
+    <h1 class="ob-t">Pelajaran Kamu</h1>
+    <p class="ob-p">Pilih jenjang sekolahmu, lalu centang mata pelajaran yang kamu pelajari. Bisa diubah kapan saja di Pengaturan.</p>
+    <label class="ob-fl">Jenjang sekolah</label>
+    <div class="day-chips" id="ob-levels" style="margin-top:8px"></div>
+    <label class="ob-fl">Cari mapel</label>
+    <input id="ob-search" placeholder="Contoh: Matematika" oninput="obPickSearch()">
+    <div class="pick-scroll" id="ob-pick"></div>
+    <p class="ob-p" style="margin-top:10px"><span id="ob-count">0</span> mapel dipilih — boleh dikosongkan, kelola nanti.</p>
+    <div class="field-row" style="margin-top:12px">
+      <button class="btn-sec" onclick="obFinish(true)">Lewati</button>
+      <button class="btn-primary" style="margin-top:0" onclick="obFinish(false)">Selesai 🎉</button>
+    </div>
   </div>
 </div>
 
@@ -48,14 +63,14 @@
       <h2 id="h-greet"></h2>
       <p id="h-sub"></p>
       <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num" id="s-pr">0</div><div class="stat-label">PR Aktif</div></div>
+        <div class="stat-box"><div class="stat-num" id="s-pr">0</div><div class="stat-label">Tugas Aktif</div></div>
         <div class="stat-box"><div class="stat-num" id="s-mapel">0</div><div class="stat-label">Jam Hari Ini</div></div>
         <div class="stat-box"><div class="stat-num" id="s-fokus">0m</div><div class="stat-label">Fokus Hari Ini</div></div>
       </div>
     </div>
 
     <div class="quick-grid">
-      <button class="quick-btn" onclick="tab('pr')"><div class="q-ico">📝</div><span>Catat PR</span></button>
+      <button class="quick-btn" onclick="tab('pr')"><div class="q-ico">📝</div><span>Buat Tugas</span></button>
       <button class="quick-btn" onclick="tab('jadwal')"><div class="q-ico">📅</div><span>Jadwal</span></button>
       <button class="quick-btn" onclick="tab('fokus')"><div class="q-ico">⏱️</div><span>Fokus</span></button>
     </div>
@@ -66,7 +81,7 @@
     </div>
 
     <div class="card">
-      <h3 class="sec">PR SEGERA TENGAT</h3>
+      <h3 class="sec">TENGGAT TERDEKAT</h3>
       <div id="h-pr"></div>
     </div>
 
@@ -79,7 +94,7 @@
   <!-- TUGAS -->
   <div id="v-pr" class="view" style="display:none">
     <div class="card">
-      <h3 class="t">+ Tambah Tugas Baru</h3>
+      <h3 class="t">+ Tambah Tugas</h3>
       <input id="in-pr" placeholder="Contoh: Latihan Modul Koding Bab 2">
       <div class="field-row">
         <div>
@@ -96,7 +111,7 @@
 
     <div class="card">
       <div class="pr-head">
-        <h3 class="sec" style="margin-bottom:0">DAFTAR PEKERJAAN RUMAH</h3>
+        <h3 class="sec" style="margin-bottom:0">DAFTAR TUGAS</h3>
         <span class="pill" id="pr-prog" style="margin-top:0"></span>
       </div>
       <div class="bar"><div id="pr-bar" class="bar-fill"></div></div>
@@ -152,7 +167,7 @@
         <button class="btn-primary" id="btn-timer" onclick="toggleTimer()">▶ Mulai Belajar</button>
         <button class="btn-sec" onclick="resetTimer()">⟳</button>
       </div>
-      <div class="fokus-sub" id="fokus-sub">Selesaikan sesi untuk menambah waktu fokus &amp; streak 📈</div>
+      <div class="fokus-sub" id="fokus-sub">Selesaikan sesi untuk menambah waktu fokus dan streak 📈</div>
     </div>
 
     <div class="card">
@@ -188,7 +203,7 @@
         <div id="acc-avatar" style="width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex:none">?</div>
         <div style="min-width:0">
           <p id="acc-name" style="font-weight:800;font-size:15px;color:var(--ink);margin:0">Belum masuk</p>
-          <p id="acc-email" style="font-size:11.5px;color:var(--muted);margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Masuk untuk menyinkronkan PR</p>
+          <p id="acc-email" style="font-size:11.5px;color:var(--muted);margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Masuk untuk menyinkronkan data tugas</p>
         </div>
       </div>
       <p id="identity-status" style="font-size:11px;color:var(--muted);margin-top:10px"></p>
@@ -212,16 +227,23 @@
       <button class="btn-sec" id="dark-btn" onclick="toggleDark()" style="margin-top:12px">🌙 Mode Gelap: OFF</button>
     </div>
     <div class="card">
-      <h3 class="t">Mata Pelajaran</h3>
+      <h3 class="t">Mata Pelajaran <span class="pill" id="mapel-count" style="margin-left:4px">0 terpilih</span></h3>
       <div class="field-row">
-        <input id="in-mapel-add" placeholder="Contoh: Seni Budaya">
-        <button class="btn-add" onclick="tambahMapel()">+</button>
+        <input id="in-pick" placeholder="Cari mapel katalog…" oninput="pickQChange(this)">
+      </div>
+      <div class="pr-filters" id="pick-levels" style="margin-top:8px"></div>
+      <div class="pick-scroll" id="pick-list"></div>
+      <button class="btn-sec" style="margin-top:12px" onclick="toggleCustomForm()">＋ Tambah Mata Pelajaran Sendiri</button>
+      <div id="custom-form" style="display:none;margin-top:10px">
+        <input id="in-custom-name" placeholder="Nama mapel (mis. Membaca Al-Qur'an)" maxlength="48">
+        <input id="in-custom-teacher" placeholder="Nama guru (opsional)" maxlength="36">
+        <button class="btn-primary" style="margin-top:10px" onclick="tambahMapel()">Simpan Mapel Sendiri</button>
       </div>
       <div id="list-mapel" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3 class="t">Cadangkan Data</h3>
-      <p style="font-size:11.5px;color:var(--muted);margin-top:4px">Semua data tersimpan lokal di perangkat. Ekspor teks cadangan untuk pindah HP, tempel kembali untuk impor.</p>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:4px">Semua data tersimpan di perangkat ini. Simpan salinan teks cadangan untuk pindah HP, tempel kembali untuk diimpor.</p>
       <button class="btn-primary" style="margin-top:12px" onclick="eksport()">⬆️ Ekspor ke Teks</button>
       <textarea id="io-area" placeholder="Hasil ekspor muncul di sini. Untuk impor: hapus teks ini, tempel data cadangan dari perangkat lama, lalu tekan Impor." style="margin-top:10px;min-height:90px;font-size:10.5px"></textarea>
       <button class="btn-sec" style="margin-top:10px" onclick="importData()">⬇️ Impor Data</button>
@@ -230,9 +252,9 @@
     <div class="card">
       <h3 class="sec">TENTANG SISWAPRO</h3>
       <p style="font-size:11.5px;color:var(--muted);line-height:1.6">
-        SiswaPro MVP (fase lokal) — dibuat untuk siswa Indonesia. Tanpa iklan.
-        Data tersimpan lokal di perangkat ini (basis data aplikasi); ekspor teks
-        tetap tersedia. Akun &amp; sinkronisasi mengikuti di fase berikutnya.
+        SiswaPro — dibuat untuk siswa Indonesia. Tanpa iklan.
+        Data tersimpan di perangkat ini; salinan teks cadangan
+        tetap tersedia. Akun &amp; sinkronisasi online hadir di pembaruan berikutnya.
       </p>
     </div>
   </div>
@@ -321,13 +343,13 @@
         <span class="lp-fico" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 1 1 .7-8.95A6 6 0 0 1 19.4 11a3.75 3.75 0 0 1-.9 7.4H7z"/><path d="M12 12v6M9.8 15.8L12 18l2.2-2.2"/></svg>
         </span>
-        <div><strong>Offline-first</strong><span>Tetap bisa diakses kapan saja</span></div>
+        <div><strong>Tetap Bisa Dipakai</strong><span>Tanpa internet pun tetap jalan</span></div>
       </li>
       <li>
         <span class="lp-fico" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.4c0 4.6-3.2 7.9-7.5 9.6-4.3-1.7-7.5-5-7.5-9.6V6z"/><circle cx="12" cy="11.4" r="1.7"/><path d="M12 13.1v2.6"/></svg>
         </span>
-        <div><strong>Aman &amp; Terpercaya</strong><span>Data kamu terlindungi</span></div>
+        <div><strong>Data Kamu Terlindungi</strong><span>Hanya kamu yang bisa melihat data kamu</span></div>
       </li>
       <li>
         <span class="lp-fico" aria-hidden="true">
@@ -361,6 +383,7 @@
 
 <script src="vendor/supabase.umd.js"></script>
 <script src="vendor/supabase-config.js"></script>
+<script src="subjects.js"></script>
 <script src="auth.js"></script>
 <script src="sync.js"></script>
 <script src="localdb.js"></script>

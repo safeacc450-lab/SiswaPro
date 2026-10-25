@@ -76,12 +76,21 @@ const LocalDb = {
       ].join(';\n'));
       await this.exec('PRAGMA user_version = 1');
     }
+    if (ver < 2) {
+      // subjects gain optional teacher (custom-subject feature). ALTER keeps
+      // existing user rows untouched; the table exists (created in v1).
+      const cols = await this.all('PRAGMA table_info(subjects)');
+      if (cols.length && !cols.some(c => (c.name ?? c.NAME) === 'teacher')) {
+        await this.exec('ALTER TABLE subjects ADD COLUMN teacher TEXT NOT NULL DEFAULT \'\'');
+      }
+      await this.exec('PRAGMA user_version = 2');
+    }
   },
 
   async ensurePersonalSpace(ownerName) {
     if (_spaceId) return _spaceId;
     const row = await this.one("SELECT id FROM spaces WHERE kind='personal' LIMIT 1");
-    if (row) { _spaceId = row.id; await this.exec(`INSERT OR REPLACE INTO meta (k,v) VALUES ('space_id','${row.id}')`); return _spaceId; }
+    if (row) { _spaceId = row.id; await this.all('INSERT OR REPLACE INTO meta (k,v) VALUES (?,?)', ['space_id', row.id]); return _spaceId; }
     _spaceId = this.uid();
     await this.all(`INSERT INTO spaces (id,kind,owner_id,name,created_at) VALUES (?,?,?,?,?)`,
       [_spaceId, 'personal', _spaceId, ownerName || 'local', Date.now()]);
@@ -112,12 +121,46 @@ const LocalDb = {
 
   // ---- subjects ---------------------------------------------------
   async subjectsAll() {
-    return this.all('SELECT id, name, created_at FROM subjects WHERE space_id=? AND deleted_at IS NULL ORDER BY created_at', [SP()]);
+    return this.all('SELECT id, name, COALESCE(teacher,\'\') AS teacher, created_at FROM subjects WHERE space_id=? AND deleted_at IS NULL ORDER BY created_at', [SP()]);
   },
-  async subjectAdd(name) {
+  // add-if-absent: case-insensitive duplicate guard in one place (also
+  // guards concurrent double-taps)
+  async subjectAdd(name, teacher) {
+    const n = String(name || '').trim().replace(/\s+/g, ' ');
+    if (!n) throw new Error('nama mapel kosong');
+    // name match decided in JS (sqlite LIKE is case-fragile on latin folds)
+    const rows = await this.all('SELECT id, name FROM subjects WHERE space_id=? AND deleted_at IS NULL', [SP()]);
+    const hit = rows.find(r => String(r.name).trim().toLowerCase() === n.toLowerCase());
+    if (hit) {
+      // revive-or-update teacher when provided
+      if (teacher !== undefined) await this.all('UPDATE subjects SET teacher=?, deleted_at=NULL WHERE id=?', [teacher || '', hit.id]);
+      return hit.id;
+    }
     const id = this.uid();
-    await this.all('INSERT INTO subjects (id,space_id,name,created_at) VALUES (?,?,?,?)', [id, SP(), name, Date.now()]);
+    await this.all('INSERT INTO subjects (id,space_id,name,teacher,created_at) VALUES (?,?,?,?,?)', [id, SP(), n, teacher || '', Date.now()]);
     return id;
+  },
+  async subjectRename(id, newName) {
+    // id-stable; references live on tasks/schedule by NAME → move both so
+    // "pr on mapel X" follows the rename. ponytail ceiling: name-keyed refs;
+    // a subject_id column on tasks is the Phase 3 upgrade if sync needs it.
+    const n = String(newName || '').trim().replace(/\s+/g, ' ');
+    if (!n) throw new Error('nama mapel kosong');
+    const row = await this.one('SELECT name FROM subjects WHERE id=? AND space_id=? AND deleted_at IS NULL', [id, SP()]);
+    if (!row) throw new Error('mapel tidak ditemukan');
+    const old = row.name;
+    if (old === n) return; // nothing to do
+    // don't let rename collide into another existing subject
+    const rows = await this.all('SELECT id FROM subjects WHERE space_id=? AND deleted_at IS NULL', [SP()]);
+    if (rows.some(r => r.id !== id && String(r.name).trim().toLowerCase() === n.toLowerCase()))
+      throw new Error('nama sudah dipakai mapel lain');
+    const escName = s => s.replace(/'/g, '\'\'');
+    await this.exec(`UPDATE subjects SET name='${escName(n)}' WHERE id='${id}' AND space_id='${SP()}'`);
+    await this.all('UPDATE tasks SET subject=?, updated_at=? WHERE space_id=? AND subject=? AND deleted_at IS NULL', [n, Date.now(), SP(), old]);
+    await this.all('UPDATE schedule SET subject=?, updated_at=? WHERE space_id=? AND subject=? AND deleted_at IS NULL', [n, Date.now(), SP(), old]);
+  },
+  async subjectSetTeacher(id, teacher) {
+    await this.all('UPDATE subjects SET teacher=? WHERE id=? AND space_id=?', [String(teacher || '').trim(), id, SP()]);
   },
   async subjectDel(id) {
     await this.all('UPDATE subjects SET deleted_at=? WHERE id=?', [Date.now(), id]);

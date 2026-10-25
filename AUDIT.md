@@ -188,3 +188,28 @@ code, and the uncommitted-drift defect list above still stands):
 - `docs/design-spec.md` / `docs/design-spec-v0.2-two-user.md` — v0.1 bannered; v0.2 two-user UI
 - `docs/test-strategy.md` / `docs/test-strategy-v2.md` — v1.3 bannered; MVP strategy v2
 - `docs/review-report-2026-10-21.md` / `docs/decision-report-2026-10-21.md` — INTAKE review + Q1–Q8 decision report
+
+
+---
+
+# Audit 2026-10-26 — subject system + repair batch (commit 2.0-mvp3)
+
+## Fixed
+- Mapel state id-keyed (`S.mapel[i] = {id,name,teacher}`); inline-onclick quote bug in settings list replaced by id-based handlers (`delMapel(id)`, `renameMapel(id)`).
+- `ensurePersonalSpace` meta write no longer interpolates SQL (parameterised).
+- Import (mvp1) uses shared `SUBJECTS.filterImportSettings` — cursor/server keys can never be imported.
+- versionCode bumped 6→7, versionName 2.0-mvp3; `VER` const kept in sync.
+
+## New: subject system (mission §5)
+- `www/subjects.js`: 60-entry curriculum-neutral seed catalog (Umum/SD·SMP/SMA·MA/SMK blocks), pure helpers `normName/isDupe/validateCustom/suggestionsFor/filterImportSettings`, node-testable.
+- Onboarding card 2: level chips (SD/MI, SMP/MTs, SMA/MA, SMK, Paket, Lainnya) + search + multi-select catalog + skip. Level stored in settings `level`.
+- Settings card rebuild: search + level filter chips + add/remove catalog + "＋ Tambah Mata Pelajaran Sendiri" (name + optional teacher) + selected list with use-counts, rename, delete.
+- LocalDb migration v2: `ALTER TABLE subjects ADD COLUMN teacher` (existing rows preserved). `subjectAdd` is add-if-absent (case-insensitive, idempotent re-pick). `subjectRename` updates subjects + tasks + schedule atomically (name-keyed refs; subject_id col is the Phase-3 upgrade). `subjectSetTeacher` added.
+- Catalog rows are inserted into the SAME subjects table as customs → identical treatment in PR/jadwal/sync/export.
+
+## Tests
+- `tests/run-tests.js` (node, no framework): 21 checks — catalog integrity, normalization, dupe/validation, level search, import filter. `npm test` wired. 21/21 pass.
+- `npm audit --omit=dev`: 3 moderate — uuid<11.1.1 via xcode via @capacitor/cli (dev-only build tooling, not shipped in APK; force-fix is breaking → accepted residual risk, documented here).
+
+## Not verified on device (external)
+- Ob step-2 UI, pick/remove/rename/teacher flows, migration v2 on an existing install — require manual device run of APK versionCode 7.

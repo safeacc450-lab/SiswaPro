@@ -56,7 +56,7 @@ async function hydrate(){
   S.dark  = kv.dark === '1' ? true : kv.dark === 'b' ? 'black' : false;
 
   const subs = await LocalDb.subjectsAll();
-  S.mapel = subs.map(r=>r.name);
+  S.mapel = subs.map(r=>({ id:r.id, name:r.name, teacher:r.teacher||'' }));
   mapelId = {};
   subs.forEach(r=>{ mapelId[r.name]=r.id; });
 
@@ -113,8 +113,7 @@ function toggleDark(){
   S.dark = !S.dark ? true : (S.dark === true ? 'black' : false);
   applyDark(); renderHome(); save().catch(persist);
   const lbl = S.dark===false ? '🌙 Mode Gelap: OFF' : S.dark==='black' ? '⬛ Mode Gelap: HITAM' : '☀️ Mode Gelap: ON';
-  $('dark-btn').textContent = lbl;
-  toast(S.dark===false ? 'Mode terang' : S.dark==='black' ? 'Mode gelap pekat (hitam) aktif' : 'Mode gelap aktif');
+  $('dark-btn').textContent = lbl;  toast(S.dark===false ? 'Mode terang aktif' : S.dark==='black' ? 'Mode gelap pekat aktif' : 'Mode gelap aktif');
 }
 function applyDark(){
   document.body.classList.toggle('dark', !!S.dark);
@@ -124,19 +123,57 @@ function applyDark(){
     S.dark==='black' ? '#000000' : '#141c2e';
 }
 
-// ---------- onboarding (FR-01 sementara: nama lokal; akun server = Phase 2) ----------
+// ---------- onboarding: kartu 1 identitas, kartu 2 jenjang + mapel ----------
 function obPick(i,el){
   document.querySelectorAll('#ob .acc').forEach(b=>b.classList.remove('on'));
   el.classList.add('on'); applyAcc(i);
 }
-function obDone(){
+function obStep2(){
   S.nama = $('ob-nama').value.trim() || 'Siswa';
-  S.ob = true;
-  save().catch(persist);
+  $('ob-1').style.display='none';
+  $('ob-2').style.display='block';
+  renderObPick();
+}
+// pick state kartu onboarding (json nama -> guru ''; helper render ulang)
+let obPicked=new Set(), obLevel=null;
+function renderObPick(){
+  const lvBox=$('ob-levels');
+  lvBox.innerHTML = SUBJECTS.LEVELS.map(l=>
+    '<button class="day-chip '+(l.id===obLevel?'on':'')+'" onclick="obSetLevel(\''+l.id+'\')">'+esc(l.label)+'</button>').join('');
+  const q=SUBJECTS.normName($('ob-search').value).toLowerCase();
+  const rows=SUBJECTS.suggestionsFor(obLevel||'sd', q);   // level null → subset umum lewat kosong
+  const pool = obLevel ? SUBJECTS.suggestionsFor(obLevel,q) : SUBJECTS.CATALOG.filter(r=>r.level.includes('sd')||r.level.includes('smp')).filter(r=>!q||r.name.toLowerCase().includes(q));
+  $('ob-pick').innerHTML = pool.length? pool.map(r=>{
+    const on=obPicked.has(r.name);
+    const arg=r.name.replace(/'/g,'');
+    return `<div class="mapel-row ${on?'picked':''}">
+      <span class="swatch" style="background:${colorOf(r.name)}"></span>
+      <span style="flex:1;min-width:0;font-size:13px;font-weight:600">${esc(r.name)}${r.full&&r.name!==r.full?' <small style="color:var(--muted)">'+esc(r.full)+'</small>':''}</span>
+      <button class="btn-add2 ${on?'on':''}" onclick="obToggle('${arg}')">${on?'✓':'+'}</button>
+    </div>`;
+  }).join('') : '<div class="empty">Tidak ditemukan? Buat sendiri nanti di Pengaturan.</div>';
+  $('ob-count').textContent=obPicked.size;
+}
+function obSetLevel(id){ obLevel=id; renderObPick(); }
+function obPickSearch(){ renderObPick(); }
+function obToggle(name){ obPicked.has(name)? obPicked.delete(name) : obPicked.add(name); renderObPick(); }
+async function obFinish(skip){
+  try{
+    if(!skip){
+      for(const name of obPicked){
+        const v=SUBJECTS.validateCustom(name); if(!v.ok) continue;
+        const id=await LocalDb.subjectAdd(v.name);
+        S.mapel.push({id,name:v.name,teacher:''}); mapelId[v.name]=id;
+      }
+    }
+    if(obLevel) await LocalDb.setSetting('level', obLevel);
+  }catch(e){ console.warn('ob subject save failed', e); }
+  S.ob=true;
+  await save();
   $('ob').style.display='none';
+  $('ob-2').style.display='none'; $('ob-1').style.display='block';
   renderAll();
   toast('Selamat belajar, '+S.nama+'! 🚀');
-  // Phase 2: setelah onboarding → tampilkan login bila server terpasang
   if (Auth.ok && !Auth.session){
     updateChip('Masuk');
     $('auth').style.display='flex';
@@ -169,9 +206,9 @@ function renderHome(){
   const bulan = now.toLocaleDateString('id-ID',{month:'long'});
   $('h-date').textContent=(wd+', '+now.getDate()+' '+bulan).toUpperCase();
   const h=now.getHours();
-  const sapa = h<11?'Semangat Pagi':(h<15?'Siap Siang':(h<18?'Bagus Sore':'Malam Tenang'));
+  const sapa = h<11?'Semangat Pagi':(h<15?'Semangat Siang':(h<18?'Semangat Sore':'Malam Tenang'));
   $('h-greet').textContent = S.nama? sapa+', '+nama+'! 👋' : 'Selamat datang! 👋';
-  $('h-sub').textContent = S.nama? 'Semua catatan buatanmu tersimpan. Lanjutkan belajarnya!' : 'Isi namamu di Pengaturan ⚙️';
+  $('h-sub').textContent = S.nama? 'Semua catatanmu tersimpan di perangkat. Lanjutkan belajarmu!' : 'Isi namamu di Pengaturan ⚙️';
 
   $('s-pr').textContent = S.pr.filter(p=>!p.d).length;
   const listToday = S.jadwal.filter(j=>j.day===wd).sort((a,b)=>a.start.localeCompare(b.start));
@@ -184,15 +221,15 @@ function renderHome(){
   if(listToday.length){
     $('tl').innerHTML = listToday.map((j,i)=>statusJd(j,nm,i)).join('');
   } else {
-    $('tl').innerHTML = '<div class="empty"><div class="e-ico">🗓️</div>'+(wd==='Minggu'||wd==='Sabtu'?'Hari libur — isi ulang energi kegembiraan!':'Belum ada jadwal hari ini.<br>Tambahkan di tab Jadwal.')+'</div>';
+    $('tl').innerHTML = '<div class="empty"><div class="e-ico">🗓️</div>'+(wd==='Minggu'||wd==='Sabtu'?'Hari libur — saatnya mengisi energi buat besok!':'Belum ada jadwal hari ini.<br>Tambahkan di tab Jadwal.')+'</div>';
   }
 
   // PR dekat
   const open = S.pr.filter(p=>!p.d).sort((p,q)=>(p.due||'zzz')<(q.due||'zzz')?-1:1);
-  $('h-pr').innerHTML = open.length ? open.slice(0,3).map((p)=>prItem(p, S.pr.indexOf(p), true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada PR dekat. Mantap!</div>';
+  $('h-pr').innerHTML = open.length ? open.slice(0,3).map((p)=>prItem(p, S.pr.indexOf(p), true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada tugas mendekati tenggat. Mantap!</div>';
 
   // quote hari
-  $('h-quote').textContent = '"'+QUOTES[new Date().getDate()%QUOTES.length]+'"';
+  $('h-quote').textContent = '\u201C'+QUOTES[new Date().getDate()%QUOTES.length]+'\u201D';
 }
 function statusJd(j,nm,idx){
   const [eh,em]=j.end.split(':').map(Number), [sh,sm]=j.start.split(':').map(Number);
@@ -268,7 +305,7 @@ function tambahPR(){
   $('in-pr').value=''; $('in-due').value='';
   toast('Tugas ditambahkan ✓');
 }
-function tog(i){ const p=S.pr[i]; p.d=!p.d; LocalDb.taskSetDone(p.id,p.d).catch(persist); renderPR(); if(p.d){ buzz(200); toast('PR selesai. Kerja bagus!'); } }
+function tog(i){ const p=S.pr[i]; p.d=!p.d; LocalDb.taskSetDone(p.id,p.d).catch(persist); renderPR(); if(p.d){ buzz(200); toast('Tugas selesai. Kerja bagus!'); } }
 function del(i){ if(confirm('Hapus tugas ini?')){ const p=S.pr[i]; LocalDb.taskDel(p.id).catch(persist); S.pr.splice(i,1); renderPR(); } }
 
 // ---------- JADWAL ----------
@@ -296,7 +333,7 @@ function pilihHari(d){ jdDay=d; renderJd(); }
 function tambahJd(){
   const m=$('in-jd-mapel').value, start=$('in-jd-start').value, end=$('in-jd-end').value, room=$('in-jd-room').value.trim();
   if(!m){ toast('Pilih mapel dulu (kelola di Pengaturan)'); return; }
-  if(!start||!end||tm(end)<=tm(start)){ toast('Cek jam mulai & selesai'); return; }
+  if(!start||!end||tm(end)<=tm(start)){ toast('Periksa jam mulai dan selesai'); return; }
   const bentrok=S.jadwal.find(j=>j.day===jdDay && tm(start)<tm(j.end) && tm(end)>tm(j.start));
   LocalDb.scheduleAdd({m,day:jdDay,start,end,room}).then(id=>{ S.jadwal.push({id,m,day:jdDay,start,end,room}); renderJd(); }).catch(persist);
   renderJd();
@@ -382,34 +419,121 @@ function simpanNama(){
   S.nama=$('in-nama').value.trim();
   save().catch(persist); renderHome(); toast(S.nama? 'Sapaan diperbarui ✓':'Nama dikosongkan');
 }
+// ---------- MATA PELAJARAN (katalog + custom, id-keyed) ----------
+// state katalog picker
+let pickQ='', pickLevel=null;      // pickLevel: null=semua
+function mapelNames(){ return S.mapel.map(r=>r.name); }
 function renderMapelSelect(){
-  const o=S.mapel.map(m=>'<option>'+esc(m)+'</option>').join('');
-  $('in-mapel').innerHTML=o||'<option value="">— Belum ada mapel, terisi otomatis —</option>';
-  $('in-jd-mapel').innerHTML=o;
+  const o=S.mapel.map(r=>'<option>'+esc(r.name)+'</option>').join('');
+  if($('in-mapel')) $('in-mapel').innerHTML=o||'<option value="">— Belum ada mapel, terisi otomatis —</option>';
+  if($('in-jd-mapel')) $('in-jd-mapel').innerHTML=o;
 }
 function renderMapelList(){
-  $('list-mapel').innerHTML = S.mapel.length? S.mapel.map(m=>{
-    const n=S.jadwal.filter(j=>j.m===m).length + S.pr.filter(p=>p.m===m).length;
+  const box=$('list-mapel'); if(!box) return;
+  box.innerHTML = S.mapel.length? S.mapel.map(r=>{
+    const n=S.jadwal.filter(j=>j.m===r.name).length + S.pr.filter(p=>p.m===r.name).length;
+    const tid=r.teacher? '<span class="tag" style="background:'+colorOf(r.name)+';opacity:.85">👤 '+esc(r.teacher)+'</span>':'';
     return `<div class="mapel-row">
-      <span class="swatch" style="background:${colorOf(m)}"></span>
-      <span style="flex:1;font-size:13px;font-weight:700">${esc(m)}</span>
+      <span class="swatch" style="background:${colorOf(r.name)}"></span>
+      <span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</span>
+      ${tid}
       <span class="use-badge">${n} dipakai</span>
-      <button class="btn-ico" onclick="delMapel('${esc(m).replace(/'/g,'\\&#39;')}')">🗑️</button>
+      <button class="btn-ico" title="Ganti nama" onclick="renameMapel('${r.id}')">✏️</button>
+      <button class="btn-ico" onclick="delMapel('${r.id}')">🗑️</button>
     </div>`;
-  }).join('') : '<div class="empty">Belum ada mapel. Tambah satu!</div>';
+  }).join('') : '<div class="empty">Belum ada mapel. Ambil dari katalog atau buat sendiri!</div>';
+  const cnt=$('mapel-count'); if(cnt) cnt.textContent=S.mapel.length+' terpilih';
 }
-function tambahMapel(){
-  const v=$('in-mapel-add').value.trim();
-  if(!v){ toast('Tulis nama mapelnya'); return; }
-  if(S.mapel.includes(v)){ toast('Mapel sudah ada'); return; }
-  LocalDb.subjectAdd(v).then(id=>{ S.mapel.push(v); mapelId[v]=id; $('in-mapel-add').value=''; renderMapelSelect(); renderMapelList(); }).catch(persist);
-  toast('Mapel ditambahkan ✓');
+function renderMapelPick(){
+  const box=$('pick-list'); if(!box) return;
+  const lvBox=$('pick-levels');
+  if (lvBox && !lvBox.dataset.ready){
+    lvBox.innerHTML='<button class="fchip on" onclick="pickLevelBtn(null,this)">Semua</button>'+
+      SUBJECTS.LEVELS.filter(l=>['sd','smp','sma','smk'].includes(l.id)).map(l=>
+        '<button class="fchip" onclick="pickLevelBtn(\''+l.id+'\',this)">'+l.label.replace(' / ','/').replace('Pend. Kesetaraan (Paket)','Paket')+'</button>').join('');
+    lvBox.dataset.ready='1';
+  }
+  const sel=new Set(mapelNames().map(x=>x.toLowerCase()));
+  const q=SUBJECTS.normName(pickQ).toLowerCase();
+  const rows=SUBJECTS.CATALOG.filter(r=>(!pickLevel||r.level.includes(pickLevel)) &&
+    (!q||r.name.toLowerCase().includes(q)||(r.full||'').toLowerCase().includes(q)));
+  box.innerHTML = rows.length? rows.map(r=>{
+    const on=sel.has(r.name.toLowerCase());
+    // onclick arg: single-quote-safe inline attr (catalog names have no quotes)
+    const arg=r.name.replace(/'/g,'');
+    const nm=esc(r.name)+(r.full&&r.name!==r.full?' <small style="color:var(--muted)">'+esc(r.full)+'</small>':'');
+    return `<div class="mapel-row">
+      <span class="swatch" style="background:${colorOf(r.name)}"></span>
+      <span style="flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</span>
+      <button class="${on?'btn-ico':'btn-add2'}" onclick="${on?'removeCatalog':'addCatalog'}('${arg}')">${on?'− hapus':'+'}</button>
+    </div>`;
+  }).join('') : '<div class="empty">Tidak ketemu di katalog? Buat sendiri di bawah \u{1F447}</div>';
 }
-function delMapel(m){
-  if(!confirm('Hapus mapel "'+m+'"? Jadwal & PR yang pakai akan tetap ada.')) return;
-  LocalDb.subjectDel(mapelId[m]).catch(persist);
-  S.mapel=S.mapel.filter(x=>x!==m); delete mapelId[m];
-  renderMapelSelect(); renderMapelList(); toast('Mapel dihapus ✓');
+function pickLevelBtn(id,el){ pickLevel=id; document.querySelectorAll('#pick-levels .fchip').forEach(b=>b.classList.remove('on')); el.classList.add('on'); renderMapelPick(); }
+function pickQChange(el){ pickQ=el.value; renderMapelPick(); }
+async function addCatalog(name){
+  name=SUBJECTS.normName(name);
+  if(SUBJECTS.isDupe(name,mapelNames())){ toast('Mapel sudah dipilih'); return; }
+  try{ const id=await LocalDb.subjectAdd(name); S.mapel.push({id,name,teacher:''}); mapelId[name]=id; renderMapelPick(); renderMapelList(); renderMapelSelect(); toast('Mapel ditambahkan ✓'); }
+  catch(e){ toast(e.message||'Gagal menambah'); }
+}
+
+
+// mapel custom: "+ Tambah Mata Pelajaran Sendiri"
+function toggleCustomForm(){
+  const f=$('custom-form'); if(!f) return;
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+  if(f.style.display==='block') $('in-custom-name').focus();
+}
+async function tambahMapel(){
+  const nm=$('in-custom-name'), tc=$('in-custom-teacher');
+  const v=SUBJECTS.validateCustom(nm.value);
+  if(!v.ok){ toast(v.error); return; }
+  if(SUBJECTS.isDupe(v.name,mapelNames())){ toast('Mapel sudah ada'); return; }
+  try{
+    const id=await LocalDb.subjectAdd(v.name, SUBJECTS.normName(tc.value));
+    S.mapel.push({id,name:v.name,teacher:SUBJECTS.normName(tc.value)});
+    mapelId[v.name]=id;
+    nm.value=''; tc.value='';
+    renderMapelPick(); renderMapelList(); renderMapelSelect();
+    toggleCustomForm();
+    toast('Mapel sendiri ditambahkan ✓');
+  }catch(e){ toast(e.message||'Gagal menambah'); }
+}
+async function renameMapel(id){
+  const row=S.mapel.find(r=>r.id===id); if(!row) return;
+  const nn=prompt('Nama baru untuk "'+row.name+'":', row.name);
+  if(nn===null) return;
+  const v=SUBJECTS.validateCustom(nn); if(!v.ok){ toast(v.error); return; }
+  if(SUBJECTS.isDupe(v.name,mapelNames().filter(x=>x!==row.name))){ toast('Nama sudah dipakai mapel lain'); return; }
+  try{
+    await LocalDb.subjectRename(id, v.name);
+    delete mapelId[row.name]; mapelId[v.name]=id; row.name=v.name;
+    await hydrate();       // tasks/schedule references moved by rename — re-sync state
+    renderMapelPick(); renderMapelList(); renderMapelSelect(); renderPR(); renderJd(); renderHome();
+    toast('Nama mapel diganti ✓');
+  }catch(e){ toast(e.message||'Gagal mengganti nama'); }
+}
+async function editTeacher(id){
+  const row=S.mapel.find(r=>r.id===id); if(!row) return;
+  const t=prompt('Nama guru (opsional) untuk "'+row.name+'":', row.teacher||'');
+  if(t===null) return;
+  const tn=SUBJECTS.normName(t);
+  await LocalDb.subjectSetTeacher(id, tn).catch(persist);
+  row.teacher=tn; renderMapelList();
+  if(tn) toast('Guru disimpan ✓');
+}
+async function delMapel(id){
+  const row=S.mapel.find(r=>r.id===id); if(!row) return;
+  if(!confirm('Hapus mapel "'+row.name+'"? Jadwal & PR yang memakainya tetap ada.')) return;
+  await LocalDb.subjectDel(id).catch(persist);
+  S.mapel=S.mapel.filter(x=>x.id!==id); delete mapelId[row.name];
+  renderMapelPick(); renderMapelList(); renderMapelSelect();
+  toast('Mapel dihapus ✓');
+}
+async function removeCatalog(name){
+  const row=S.mapel.find(r=>r.name.toLowerCase()===name.toLowerCase()); if(!row) return;
+  await delMapel(row.id);
 }
 
 // ---------- EKSPOR / IMPOR (FR-14) ----------
@@ -437,11 +561,7 @@ async function importData(){
       if (t.done) await LocalDb.taskSetDone(id, true);
     }
     for(const k in (d.focus||{})) { const m=Number(d.focus[k]); if(m>0) await LocalDb.focusAdd(String(k), m|0); }
-    for(const row of (d.settings||[])) {
-      if(!row || !row.k) continue;
-      if(row.k==='server_space'||row.k==='feed_cursor') continue;
-      await LocalDb.setSetting(row.k, String(row.v));
-    }
+    for(const row of (d.settings||[])) if(SUBJECTS.filterImportSettings([row]).length) await LocalDb.setSetting(row.k, String(row.v));
     toast('Data MVP dipulihkan ✓');
     location.reload();
     return;
@@ -477,7 +597,7 @@ function tab(target){
   if(target==='jadwal') renderJd();
   if(target==='pr') renderPR();
   if(target==='fokus'){ renderBars(); renderStreak(); }
-  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON'; refreshIdentityCard(); }
+  if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON'; refreshIdentityCard(); renderMapelPick(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -516,7 +636,7 @@ function refreshIdentityCard(){
 // ---------- INIT ----------
 function renderAll(){
   applyAcc(S.accent); applyDark();
-  renderMapelSelect(); renderMapelList(); renderHome(); renderPR(); renderJd(); renderBars(); renderStreak();
+  renderMapelSelect(); renderMapelList(); renderMapelPick(); renderHome(); renderPR(); renderJd(); renderBars(); renderStreak();
   $('in-nama').value=S.nama;
   $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON';
   refreshIdentityCard();
@@ -772,7 +892,7 @@ async function doSignup(){
 })();
 
 // info pembaruan versi
-const VER='2.0-mvp1';
+const VER='2.0-mvp3';
 if(localStorage.getItem('sp_ver')!==VER){
   localStorage.setItem('sp_ver',VER);
 }
