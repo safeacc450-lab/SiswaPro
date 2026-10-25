@@ -231,19 +231,127 @@
 </div>
 
 <!-- LOGIN/SIGNUP (Phase 2, tampil hanya jika server dikonfigurasi) -->
-<div id="auth" class="obwrap" style="display:none">
-  <div class="obcard">
-    <div class="ob-ico">🎓</div>
-    <h1 class="ob-t" id="auth-t">Masuk SiswaPro</h1>
-    <p class="ob-p" id="auth-p">Masuk dengan akun kamu ( server : fase sinkron ) untuk mulai mencatat lintas perangkat.</p>
-    <label class="ob-fl">Email akun</label>
-    <input id="li-email" type="email" inputmode="email" autocomplete="email" placeholder="nama@contoh.com">
-    <label class="ob-fl">Password</label>
-    <input id="li-pass" type="password" autocomplete="current-password" placeholder="••••••••">
-    <span id="li-err" style="display:block;color:#dc2626;font-size:11.5px;min-height:16px;margin-top:4px"></span>
-    <button class="btn-primary" id="li-btn" onclick="doAuth()">Masuk 🔓</button>
-    <button id="li-mode" class="auth-link" onclick="toggleAuthMode()">Belum punya akun? Daftar di sini ✨</button>
-    <p class="auth-note">🔒 Data kamu diamankan: akun + token di penyimpanan aman perangkat, isi catatan hanya bisa dibaca kamu.</p>
+<div id="auth" class="lp-screen" style="display:none">
+  <div class="lp-wrap">
+    <header class="lp-brand">
+      <svg class="lp-logo" viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
+        <defs>
+          <linearGradient id="lp-gmark" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#123a8f"/>
+            <stop offset="1" stop-color="#2563eb"/>
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#lp-gmark)"/>
+        <path d="M10 15.5c4.6-2.4 9.3-2.4 13 0v17.6c-3.7-2.2-8.4-2.2-13 0V15.5z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M38 15.5c-4.6-2.4-9.3-2.4-13 0v17.6c3.7-2.2 8.4-2.2 13 0V15.5z" fill="none" stroke="#93c5fd" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M24 15.5v17.6" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+      </svg>
+      <div class="lp-brand-t">
+        <strong>SiswaPro</strong>
+        <span>Asisten Belajar Siswa</span>
+      </div>
+    </header>
+
+    <figure class="lp-art" aria-hidden="true">
+      <svg viewBox="0 0 340 190" width="100%" role="img">
+        <defs>
+          <linearGradient id="lp-gsky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#123a8f"/>
+            <stop offset="1" stop-color="#1e56c9"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="340" height="190" rx="22" fill="url(#lp-gsky)"/>
+        <circle cx="286" cy="38" r="64" fill="#ffffff" opacity=".07"/>
+        <circle cx="38" cy="158" r="46" fill="#ffffff" opacity=".06"/>
+        <circle cx="292" cy="52" r="3.4" fill="#93c5fd"/>
+        <circle cx="246" cy="26" r="2.2" fill="#ffffff" opacity=".8"/>
+        <circle cx="66" cy="42" r="2.6" fill="#60a5fa"/>
+        <path d="M84 34h10M89 29v10" stroke="#93c5fd" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M259 92h9M263.5 87.5v9" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round"/>
+        <!-- stack buku -->
+        <g>
+          <rect x="118" y="140" width="104" height="13" rx="5" fill="#93c5fd"/>
+          <rect x="126" y="124" width="92" height="13" rx="5" fill="#dbeafe"/>
+          <rect x="122" y="132" width="98" height="13" rx="5" fill="#60a5fa"/>
+        </g>
+        <!-- buku terbuka -->
+        <g>
+          <path d="M170 96c-14-8-30-9-42-4v40c12-5 28-4 42 4V96z" fill="#ffffff"/>
+          <path d="M170 96c14-8 30-9 42-4v40c-12-5-28-4-42 4V96z" fill="#dbeafe"/>
+          <path d="M170 96v44" stroke="#93c5fd" stroke-width="2.4"/>
+          <path d="M136 100c8-2 18-1 26 3M136 110c8-2 18-1 26 3M136 120c8-2 18-1 26 3" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" opacity=".5"/>
+          <path d="M204 100c-8-2-18-1-26 3M204 110c-8-2-18-1-26 3M204 120c-8-2-18-1-26 3" stroke="#123a8f" stroke-width="2.2" stroke-linecap="round" opacity=".35"/>
+        </g>
+        <!-- toga -->
+        <g transform="rotate(-8 226 74)">
+          <path d="M200 66l32-12 30 12-32 12-30-12z" fill="#dbeafe"/>
+          <path d="M216 74v10c0 4 28 4 28 0V74" fill="none" stroke="#93c5fd" stroke-width="3"/>
+          <path d="M262 66v13" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="262" cy="83" r="3" fill="#ffffff"/>
+        </g>
+        <!-- bintang penghargaan -->
+        <g transform="translate(84 96)">
+          <circle r="12" fill="#60a5fa"/>
+          <path d="M0-6l1.8 3.8 4.2.5-3.1 2.9.8 4.1L0 3.4-3.7 5.3l.8-4.1L-6-1.7l4.2-.5z" fill="#ffffff"/>
+        </g>
+        <rect x="34" y="168" width="272" height="3" rx="1.5" fill="#ffffff" opacity=".15"/>
+      </svg>
+    </figure>
+
+    <h1 class="lp-t" id="auth-t">Selamat datang kembali!</h1>
+    <p class="lp-p" id="auth-p">Masuk untuk melanjutkan catatan belajarmu. Data tetap tersimpan aman di perangkat ini.</p>
+
+    <button type="button" class="lp-google" id="lp-google" onclick="spGoogle()">
+      <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      <span>Lanjutkan dengan Google</span>
+    </button>
+
+    <div class="lp-div" id="lp-div" aria-hidden="true"><span>atau masuk dengan email</span></div>
+
+    <form class="lp-form" onsubmit="event.preventDefault();doAuth()">
+      <label class="lp-fl" for="li-email">Email</label>
+      <input id="li-email" type="email" inputmode="email" autocomplete="email" placeholder="nama@contoh.com">
+
+      <label class="lp-fl" for="li-pass">Kata sandi</label>
+      <div class="lp-passrow">
+        <input id="li-pass" type="password" autocomplete="current-password" placeholder="Masukkan kata sandi">
+        <button type="button" class="lp-eye" id="lp-eye" onclick="spTogglePass()" aria-label="Tampilkan kata sandi" aria-pressed="false">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <g class="eye-on"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></g>
+            <g class="eye-off" display="none"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.3 3.2M6.2 6.2A17.5 17.5 0 0 0 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></g>
+          </svg>
+        </button>
+      </div>
+
+      <div class="lp-errrow">
+        <span id="li-err" role="alert"></span>
+        <button type="button" class="lp-forgot" id="lp-forgot" onclick="spForgot()">Lupa kata sandi?</button>
+      </div>
+
+      <button class="lp-submit" type="submit" id="li-btn">Masuk</button>
+    </form>
+
+    <button id="li-mode" type="button" class="auth-link lp-mode" onclick="toggleAuthMode()">Belum punya akun? Daftar</button>
+
+    <ul class="lp-feats">
+      <li><span class="lp-fico" aria-hidden="true">📥</span><div><strong>Offline-first</strong><span>Data lokal selalu siap</span></div></li>
+      <li><span class="lp-fico" aria-hidden="true">🛡️</span><div><strong>Aman &amp; Terpercaya</strong><span>Token di penyimpanan aman</span></div></li>
+      <li><span class="lp-fico" aria-hidden="true">📱</span><div><strong>Multi-Perangkat</strong><span>Sinkron saat online</span></div></li>
+    </ul>
+
+    <footer class="lp-legal">
+      <span>Dengan masuk, kamu menyetujui</span>
+      <span class="lp-legal-links">
+        <button type="button" id="lp-tos" onclick="spLegal('Ketentuan Layanan')">Ketentuan Layanan</button>
+        &amp;
+        <button type="button" id="lp-priv" onclick="spLegal('Kebijakan Privasi')">Kebijakan Privasi</button>
+      </span>
+    </footer>
   </div>
 </div>
 

@@ -508,17 +508,25 @@ async function manualSync(){
 
 // ---------- LOGIN/SIGNUP (Phase 2; self-serve accounts signed-off
 // 2026-10-23; personal space bootstrapped by Sync.resolveSpace) -------
-const AUTH_LBL = { login:'Masuk 🔓', signup:'Daftar 🚀' };
+const AUTH_LBL = { login:'Masuk', signup:'Daftar' };
 let authMode = 'login';
 function renderAuthMode(){
   const signup = authMode === 'signup';
   const t = $('auth-t'), p = $('auth-p'), btn = $('li-btn'), lnk = $('li-mode');
-  if (t) t.textContent = signup ? 'Buat akun SiswaPro' : 'Masuk SiswaPro';
+  if (t) t.textContent = signup ? 'Buat akun SiswaPro' : 'Selamat datang kembali!';
   if (p) p.textContent = signup
-    ? 'Daftar dengan email kamu (server: fase sinkron). Password minimal 6 karakter.'
-    : 'Masuk dengan akun kamu (server: fase sinkron) untuk mulai mencatat lintas perangkat.';
+    ? 'Daftar dengan email untuk menjaga catatan belajarmu lintas perangkat. Password minimal 6 karakter.'
+    : 'Masuk untuk melanjutkan catatan belajarmu. Data tetap tersimpan aman di perangkat ini.';
   if (btn) btn.textContent = AUTH_LBL[authMode];
-  if (lnk) lnk.textContent = signup ? '← Sudah punya akun? Masuk' : 'Belum punya akun? Daftar di sini ✨';
+  if (lnk) lnk.textContent = signup ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar';
+  // Google belum tersedia (butuh OAuth client ID + provider Google di
+  // Supabase) — sembunyikan di mode daftar bersama pemisahnya.
+  const g = $('lp-google'), dv = $('lp-div'),
+        frg = $('lp-forgot'), pass = $('li-pass');
+  if (g) g.style.display = signup ? 'none' : 'flex';
+  if (dv) dv.style.display = signup ? 'none' : 'flex';
+  if (frg) frg.style.display = signup ? 'none' : 'inline-block';
+  if (pass) pass.setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
   const err = $('li-err'); if (err) err.textContent = '';
 }
 function toggleAuthMode(){
@@ -527,10 +535,53 @@ function toggleAuthMode(){
 }
 function doAuth(){ authMode === 'login' ? doLogin() : doSignup(); }
 
+// --- kontrol UI login baru: toggle sandi, Google (boundary), lupa sandi,
+// tautan legal ---------------------------------------------------------
+function spTogglePass(){
+  const inp = $('li-pass'), b = $('lp-eye');
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  if (b) {
+    b.classList.toggle('on', show);
+    b.setAttribute('aria-pressed', String(show));
+    b.setAttribute('aria-label', show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+  }
+}
+function spGoogle(){
+  const err = $('li-err');
+  if (err) err.textContent = 'Masuk Google belum aktif — butuh OAuth Google (client ID) + provider Google di Supabase. Sementara: masuk dengan email & kata sandi.';
+}
+async function spForgot(){
+  const err = $('li-err');
+  err.textContent = '';
+  const email = $('li-email').value.trim();
+  if (!email.includes('@')) {
+    err.textContent = 'Isi email kamu di kolom atas, lalu ketuk Lupa kata sandi.';
+    return;
+  }
+  if (!Auth.ok && !(await Auth.initClient())) {
+    err.textContent = 'Server belum dikonfigurasi — pemulihan akun butuh fase 2.';
+    return;
+  }
+  try {
+    await Auth.requestReset(email);
+    toast('Tautan reset dikirim ke ' + email + ' — buka di HP ini, lalu Masuk lagi.');
+  } catch (e) {
+    err.textContent = (e && e.message || 'Gagal mengirim tautan reset.');
+  }
+}
+function spLegal(name){ toast(name + ' akan tersedia di rilis berikutnya.'); }
+
 async function doLogin(){
   const btn=$('li-btn'), err=$('li-err');
   err.textContent='';
   const email=$('li-email').value.trim(), pass=$('li-pass').value;
+  if(!email.includes('@')){
+    err.textContent='Gunakan alamat email kamu (format nama@contoh.com).';
+    return;
+  }
+  if(!pass){ err.textContent='Masukkan kata sandi.'; return; }
   if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
     err.textContent='Server belum dikonfigurasi — minta pembuat aplikasi isi fase 2.';
     return;

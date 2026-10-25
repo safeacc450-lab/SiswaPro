@@ -71,6 +71,17 @@ const Auth = {
 
   // self-serve account creation (2026-10-23 sign-off: users register
   // themselves; personal space is bootstrapped by Sync.resolveSpace)
+  // self-serve password recovery (ADR-3 signed: email reset).
+  // Recovery link lands on siswapro://auth/callback with session tokens —
+  // handleUrl() below exchanges them for a persisted session.
+  async requestReset(email) {
+    if (!this.ok) throw new Error('Server belum dikonfigurasi (fase 2).');
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: 'siswapro://auth/callback'
+    });
+    if (error) throw error;
+  },
+
   async signup(email, password) {
     if (!this.ok) throw new Error('Sinkronisasi belum dikonfigurasi (fase 2).');
     const { data, error } = await this.client.auth.signUp({
