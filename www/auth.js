@@ -33,25 +33,30 @@ const Auth = {
   },
 
   storageAdapter() {
-    // RAW bridge surface only (verified against plugin.js): get(key) ->
-    // {data: string}, set(key, data), remove(key). The JS wrapper's
-    // getItem/setItem/removeItem are NOT part of the native proxy —
-    // calling them on window.Capacitor.Plugins.SecureStorage throws
-    // "P.setItem is not a function" (first hit: Google login 2026-10-24).
+    // RAW bridge surface (v8 web-plugin, TANPA bundler): metode publik
+    // get/set/remove hidup di wrapper JS yang tidak capsulasi di sini —
+    // jembatan native hanya mengekspos @PluginMethod internal*.
+    // Param persis seperti base.js default: prefix 'capacitor-storage_',
+    // sync=false, access='whenUnlocked'.
     const P = this.secure();
-    if (typeof P.set !== 'function') {
-      throw new Error('SecureStorage bridge tidak sesuai — tidak aman untuk token (ADR-6)');
+    if (typeof P.internalSetItem !== 'function' || typeof P.internalGetItem !== 'function') {
+      throw new Error('SecureStorage bridge tidak punya internal* — tidak aman untuk token (ADR-6)');
     }
+    const PRE = 'capacitor-storage_';
     return {
       getItem: async k => {
         try {
-          const r = await P.get(k);
+          const r = await P.internalGetItem({ prefixedKey: PRE + k, sync: false });
           const d = r && r.data;
           return (d === undefined || d === null) ? null : d;
         } catch (e) { return null; }
       },
-      setItem: async (k, v) => { await P.set(k, String(v)); },
-      removeItem: async k => { try { await P.remove(k); } catch (e) {} }
+      setItem: async (k, v) => {
+        await P.internalSetItem({ prefixedKey: PRE + k, data: String(v), sync: false, access: 'whenUnlocked' });
+      },
+      removeItem: async k => {
+        try { await P.internalRemoveItem({ prefixedKey: PRE + k, sync: false }); } catch (e) {}
+      }
     };
   },
 
@@ -65,8 +70,8 @@ const Auth = {
       console.warn('SecureStorage plugin missing — sync stays off (ADR-6)');
       return false;
     }
-    if (typeof P.set !== 'function') {
-      this.initErr = 'Plugin penyimpanan aman tidak punya set() (permukaan bridge beda).';
+    if (typeof P.internalSetItem !== 'function') {
+      this.initErr = 'Plugin penyimpanan aman tidak punya internalSetItem (permukaan bridge beda).';
       console.warn('SecureStorage bridge mismatch — sync stays off (ADR-6)');
       return false;
     }

@@ -277,7 +277,7 @@
   <div id="v-set" class="view" style="display:none">
     <div class="card" id="acc-card">
       <div style="display:flex;align-items:center;gap:12px">
-        <div id="acc-avatar" style="width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex:none">?</div>
+        <div id="acc-avatar" style="width:52px;height:52px;border-radius:50%;background:var(--a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;flex:none">?</div>
         <div style="min-width:0">
           <p id="acc-name" style="font-weight:800;font-size:15px;color:var(--ink);margin:0">Belum masuk</p>
           <p id="acc-email" style="font-size:11.5px;color:var(--muted);margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Masuk untuk menyinkronkan data tugas</p>
@@ -290,7 +290,7 @@
     </div>
     <div class="card">
       <h3 class="t">Nama Kamu</h3>
-      <input id="in-nama" placeholder="Contoh: Budi" maxlength="24">
+      <input id="in-nama" placeholder="Contoh: Felix" maxlength="24">
       <button class="btn-primary" style="margin-top:12px" onclick="simpanNama()">Simpan Nama</button>
     </div>
     <div class="card">
@@ -339,6 +339,9 @@
 
 <!-- LOGIN/SIGNUP (Phase 2, tampil hanya jika server dikonfigurasi) -->
 <div id="auth" class="lp-screen" style="display:none">
+  <button class="btn-mini lp-close" onclick="authClose()" aria-label="Tutup layar masuk">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg> Tutup
+  </button>
   <div class="lp-wrap">
     <header class="lp-hero">
       <img class="lp-hero-img" src="assets/login-hero-art.webp" alt="">

@@ -450,3 +450,14 @@ textarea{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12
 .tick{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--card);color:#fff;cursor:pointer;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;padding:0}
 .tick.on{background:var(--a);border-color:var(--a)}
 .tick .ii{width:13px;height:13px;stroke-width:3}
+
+/* transisi antar-layar 3.0: fade+slide 180ms */
+.view{animation:viewIn .18s ease both}
+.view.enter{animation:replayIn .18s ease both}
+@keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes replayIn{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.view,.view.enter{animation:none}}
+/* tombol Tutup di login: fixed kanan-atas, aman qwin safe-area */
+.lp-close{position:fixed;top:calc(12px + env(safe-area-inset-top));right:14px;
+  z-index:97;background:rgba(255,255,255,.92);color:#1e40af;border-color:#bcd0ef}
+.lp-close b{font-weight:800}

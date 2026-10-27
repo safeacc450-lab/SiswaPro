@@ -377,6 +377,7 @@ async function taskSave(id){
   }catch(e){ $('tf-err').textContent='Gagal menyimpan: '+(e.message||e); }
 }
 function sheetClose(){ $('sheet').style.display='none'; $('sheet-body').innerHTML=''; }
+function authClose(){ $('auth').style.display='none'; renderAll(); }
 function renderTugas(){
   renderPR(); renderCal(); renderJd();
 }
@@ -916,7 +917,9 @@ function refreshIdentityCard(){
       refreshIdentityCard();
     };
   } else {
-    av.textContent='?';
+    av.innerHTML = S.nama
+      ? esc(S.nama[0].toUpperCase())
+      : '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>';
     nm.textContent='Belum masuk';
     em.textContent='Masuk untuk menyinkronkan data tugas';
     st.textContent = 'Mode lokal. Data tersimpan di perangkat ini.';
