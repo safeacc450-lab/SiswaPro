@@ -12,6 +12,7 @@ const Auth = {
   client: null,
   ok: false,          // config + secure storage both available
   initErr: null,      // alasan singkat initClient false (untuk li-err, tanpa kredensial)
+  secureDiag: null,
   session: null,
   identity: null,     // {role:'Lea'|'Violet', email}
 
@@ -24,9 +25,11 @@ const Auth = {
   },
 
   secure() {
-    // raw aparajita plugin (after round-2 verification): Keystore AES-GCM
-    try { return window.Capacitor.Plugins.SecureStorage; }
-    catch (e) { return null; }
+    // raw aparajita plugin: Keystore AES-GCM
+    const P = (window.Capacitor && window.Capacitor.Plugins) || {};
+    if (!P.SecureStorage) { this.secureDiag = 'plugin tidak terdaftar di bridge'; return null; }
+    this.secureDiag = null;
+    return P.SecureStorage;
   },
 
   storageAdapter() {
@@ -56,11 +59,16 @@ const Auth = {
     if (this.client) return this.ok;
     this.initErr = 'Konfigurasi server tidak ditemukan dalam build.';
     if (!this.configured()) return false;
-    this.initErr = 'Penyimpanan aman (Keystore) tidak tersedia.';
     const P = this.secure();
-    if (!P || typeof P.set !== 'function') {
-      console.warn('SecureStorage plugin/bridge missing — sync stays off (ADR-6)');
-      return false;  // initErr sudah diset sebelum pemanggilan
+    if (!P) {
+      this.initErr = 'Plugin penyimpanan aman tidak terdaftar: ' + (this.secureDiag || '?');
+      console.warn('SecureStorage plugin missing — sync stays off (ADR-6)');
+      return false;
+    }
+    if (typeof P.set !== 'function') {
+      this.initErr = 'Plugin penyimpanan aman tidak punya set() (permukaan bridge beda).';
+      console.warn('SecureStorage bridge mismatch — sync stays off (ADR-6)');
+      return false;
     }
     this.initErr = 'Client auth gagal dibuat.';
     const cfg = window.SUPABASE_CONFIG;
