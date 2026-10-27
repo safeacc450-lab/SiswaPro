@@ -11,6 +11,7 @@
 const Auth = {
   client: null,
   ok: false,          // config + secure storage both available
+  initErr: null,      // alasan singkat initClient false (untuk li-err, tanpa kredensial)
   session: null,
   identity: null,     // {role:'Lea'|'Violet', email}
 
@@ -53,12 +54,15 @@ const Auth = {
 
   async initClient() {
     if (this.client) return this.ok;
+    this.initErr = 'Konfigurasi server tidak ditemukan dalam build.';
     if (!this.configured()) return false;
+    this.initErr = 'Penyimpanan aman (Keystore) tidak tersedia.';
     const P = this.secure();
     if (!P || typeof P.set !== 'function') {
       console.warn('SecureStorage plugin/bridge missing — sync stays off (ADR-6)');
-      return false;
+      return false;  // initErr sudah diset sebelum pemanggilan
     }
+    this.initErr = 'Client auth gagal dibuat.';
     const cfg = window.SUPABASE_CONFIG;
     try {
       this.client = window.supabase.createClient(cfg.url, cfg.anonKey, {
@@ -70,9 +74,10 @@ const Auth = {
           flowType: 'implicit'
         }
       });
-      this.ok = true;
+      this.ok = true; this.initErr = null;
     } catch (e) {
       console.warn('auth client init failed (secure storage?)', e);
+      this.initErr = 'Init client auth: ' + (e && e.message || e) + '';
       this.ok = false;
     }
     return this.ok;

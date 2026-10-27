@@ -1018,7 +1018,7 @@ async function spGoogle(){
   const err = $('li-err'), btn = $('lp-google');
   err.textContent = '';
   if (!Auth.ok && !(await Auth.initClient())) {
-    err.textContent = 'Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
+    err.textContent = 'Google belum siap: ' + (Auth.initErr || 'tidak diketahui') + ' — coba lagi nanti.';
     return;
   }
   btn.disabled = true;
@@ -1042,7 +1042,7 @@ async function spForgot(){
     return;
   }
   if (!Auth.ok && !(await Auth.initClient())) {
-    err.textContent = 'Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
+    err.textContent = 'Reset belum siap: ' + (Auth.initErr || 'tidak diketahui') + ' — coba lagi nanti.';
     return;
   }
   try {
@@ -1065,7 +1065,8 @@ async function doLogin(){
   }
   if(!pass){ err.textContent='Masukkan kata sandi.'; return; }
   if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
-    err.textContent='Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
+    await Auth.initClient();
+    err.textContent='Masuk belum siap: ' + (Auth.initErr || 'konfigurasi tidak ada') + ' — coba lagi nanti.';
     return;
   }
   btn.disabled=true; btn.textContent='Memverifikasi…';
@@ -1094,7 +1095,8 @@ async function doSignup(){
     return;
   }
   if(!window.SUPABASE_CONFIG || (Auth.client && !Auth.ok)){
-    err.textContent='Server belum siap — coba lagi nanti, atau hubungi pembuat aplikasi.';
+    await Auth.initClient();
+    err.textContent='Masuk belum siap: ' + (Auth.initErr || 'konfigurasi tidak ada') + ' — coba lagi nanti.';
     return;
   }
   btn.disabled=true; btn.textContent='Membuat akun…';
