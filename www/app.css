@@ -186,9 +186,13 @@ body.black .auth-link{color:var(--ink2)}
 
 /* ===== NEON-LIFT OVERHAUL (dial-in dari example aqua portfolio) ===== */
 html{scroll-behavior:smooth}
-::-webkit-scrollbar{width:7px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--a);border-radius:6px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#b6c4da;border-radius:6px}
+.lp-screen{scrollbar-width:thin;scrollbar-color:#b6c4da transparent}
+.lp-screen::-webkit-scrollbar{width:5px}
+.lp-screen::-webkit-scrollbar-thumb{background:#b6c4da;border-radius:6px}
+.lp-screen::-webkit-scrollbar-track{background:transparent}
 ::selection{background:var(--a);color:#fff}
 
 .app-title h1{text-shadow:0 0 14px var(--glow)}
@@ -242,11 +246,11 @@ h3.t::before,h3.sec::before{content:'';position:absolute;left:0;top:52%;transfor
 
 /* — hero: ilustrasi full-bleed + brand overlay + note tangan — */
 .lp-hero{position:relative;margin:0;line-height:0}
-.lp-hero-img{width:100%;display:block}
+.lp-hero-img{width:100%;display:block;max-height:300px;object-fit:cover;
+  object-position:62% 24%;background:linear-gradient(180deg,#a5c8f5,#dbe9fd)}
 .lp-hero-fade{position:absolute;inset:auto 0 0 0;height:34%;
   background:linear-gradient(180deg,rgba(236,243,253,0) 0%,#ecf3fd 88%)}
-.lp-hero-top{position:absolute;top:0;left:0;right:0;display:flex;
-  justify-content:space-between;align-items:flex-start;gap:12px;
+.lp-hero-top{position:absolute;top:0;left:0;right:0;
   padding:calc(18px + env(safe-area-inset-top)) 22px 0}
 .lp-brand{display:flex;align-items:center;gap:11px;
   filter:drop-shadow(0 2px 6px rgba(11,31,75,.35))}
@@ -256,12 +260,7 @@ h3.t::before,h3.sec::before{content:'';position:absolute;left:0;top:52%;transfor
 .lp-brand-t strong b{color:#93c5fd;font-weight:900}
 .lp-brand-t span{display:block;font-size:10.5px;color:#e3edff;font-weight:600;
   margin-top:1px;text-shadow:0 1px 5px rgba(11,31,75,.4)}
-.lp-note{font-family:'Segoe Script','Bradley Hand','Comic Sans MS',cursive;
-  font-size:11.5px;line-height:1.5;color:#fff;opacity:.92;text-align:right;
-  text-shadow:0 1px 6px rgba(11,31,75,.4);transform:rotate(-2.5deg);
-  border-bottom:2px solid rgba(255,255,255,.55);border-radius:0 0 12px 2px;
-  padding:0 2px 3px;flex:0 0 auto;max-width:150px}
-.lp-note b{color:#fff3c4}
+
 
 .lp-t{font-size:25px;font-weight:900;color:#0b1f4b;letter-spacing:-.4px;
   line-height:1.2;margin:2px 22px 0}
@@ -322,7 +321,7 @@ h3.t::before,h3.sec::before{content:'';position:absolute;left:0;top:52%;transfor
 #li-mode:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 
 /* — fitur di dalam kartu, hairline atas 3 kolom — */
-.lp-feats{list-style:none;display:flex;margin:20px 0 0;padding:15px 2px 0;
+.lp-feats{list-style:none;display:flex;flex-wrap:wrap;margin:20px 0 0;padding:15px 2px 0;
   border-top:1px solid #d7e2f5}
 .lp-feats li{flex:1;display:flex;gap:8px;align-items:flex-start;min-width:0;
   padding:2px 6px}
@@ -353,7 +352,7 @@ button.lp-forgot:focus-visible,.lp-legal button:focus-visible{
 }
 body.dark .lp-screen{background:linear-gradient(180deg,#0b1220,#101a30)}
 body.dark .lp-hero-fade{background:linear-gradient(180deg,rgba(11,18,32,0) 0%,#0b1220 88%)}
-body.dark .lp-brand-t strong,body.dark .lp-note{color:#e2ecff}
+body.dark .lp-brand-t strong{color:#e2ecff}
 body.dark .lp-brand-t strong{text-shadow:none}
 body.dark .lp-brand{filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
 body.dark .lp-t{color:#e6edff}
@@ -404,7 +403,6 @@ body.black .lp-fico{background:#101018}
 body.dark .btn-danger,body.black .btn-danger{background:#2a1215;border-color:#7f1d1d}
 .btn-ico{border:0;background:transparent;color:var(--muted);padding:6px;border-radius:10px;cursor:pointer;display:inline-flex}
 .btn-ico:active{background:var(--soft)}
-.gear{width:38px;height:38px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:#fff;font-weight:800;cursor:pointer;font-size:13px}
 
 .srch-row{margin-top:12px}
 .lp-inrow{position:relative;flex:1;display:flex;align-items:center}
