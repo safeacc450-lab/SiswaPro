@@ -972,7 +972,7 @@ function syncErrMsg(e){
   if (/fetch|network|timeout|aborted/i.test(m)) return 'Sinkronisasi gagal — periksa koneksi internet, lalu coba lagi.';
   if (/session expired|REAUTH|auth/i.test(m)) return 'Sesi masuk habis — masuk lagi, lalu coba sinkronisasi.';
   if (/HTTP 40[13]/.test(m)) return 'Sesi masuk tidak berlaku — keluar lalu masuk lagi ke akun.';
-  return 'Sinkronisasi gagal — coba lagi.';
+  return 'Sinkronisasi gagal: ' + m.slice(0,140) + ' — coba lagi.';
 }
 
 // ---------- LOGIN/SIGNUP (Phase 2; self-serve accounts signed-off
@@ -1110,6 +1110,8 @@ async function doSignup(){
     $('auth').style.display='none';
     toast('Akun dibuat — selamat datang, ' + (idty.role || idty.email) + ' ✓');
     updateChip((idty.role || 'Sinkron') + '…');
+    refreshIdentityCard();
+    if (TABS.current==='set') tab('set');
     await manualSync();
   }catch(e){
     err.textContent = (e && e.message || 'Pendaftaran gagal — coba lagi.').replace(/^AuthApiError:? */,'');
@@ -1151,8 +1153,11 @@ async function doSignup(){
           const landed = await Auth.handleUrl(url);
           if (landed) {
             $('auth').style.display = 'none';
+            personaTheme(Auth.identity);
             updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
-            toast('Email terkonfirmasi — masuk otomatis ✓');
+            refreshIdentityCard();
+            if (typeof TABS !== 'undefined') { TABS.current=TABS.current||'home'; tab(TABS.current); }
+            toast('Berhasil masuk ✓');
             await manualSync();
           }
         } catch (e) {
@@ -1167,7 +1172,9 @@ async function doSignup(){
           $('auth').style.display = 'none';
           personaTheme(Auth.identity);
           updateChip((Auth.identity && Auth.identity.role || 'Sinkron') + '…');
-          toast('Email terkonfirmasi — masuk otomatis ✓');
+          refreshIdentityCard();
+          tab(TABS.current);
+          toast('Berhasil masuk ✓');
           await manualSync();
         }
       }
