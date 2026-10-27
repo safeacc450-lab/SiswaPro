@@ -61,7 +61,8 @@ async function hydrate(){
   subs.forEach(r=>{ mapelId[r.name]=r.id; });
 
   S.jadwal = await LocalDb.scheduleAll();
-  S.pr = (await LocalDb.tasksAll()).map(r=>({ id:r.id, t:r.title, m:r.subject, d:!!r.done, due:r.due||'' }));
+  S.pr = (await LocalDb.tasksAll()).map(r=>({ id:r.id, t:r.title, m:r.subject, d:!!r.done, due:r.due||'', notes:r.notes||'', priority:r.priority||'normal', created_at:r.created_at }));
+  S.notes = (await LocalDb.notesAll()).map(r=>({ id:r.id, title:r.title, body:r.body, subject:r.subject, pinned:!!r.pinned, updated_at:r.updated_at }));
 
   const focus = await LocalDb.focusByDay();
   S.hist = Object.keys(focus).map(d=>({d, m:focus[d]})).filter(e=>e.m>0).sort((a,b)=>a.d<b.d?-1:1).slice(-30);
@@ -196,22 +197,28 @@ const QUOTES = [
   'Nilai sehat lahir dari kebiasaan rapi sejak hari-hari biasa.',
   'Perbandingan terbaik adalah dirimu kemarin.',
   'Meja yang rapi, pikiran pun rapi.',
-  'Kebiasaan baik adalah modal terbesar pelajar.'
+  'Kebiasaan baik adalah modal terbesar pelajar.',
+  'Terkadang realita gak seindah yang kamu bayangkan',
+  'Ada banyak someone wonderful di dunia ini, salah satunya itu kamu',
+  'Jangan pernah menyerah meski dalam kondisi apapun itu...'
 ];
 function renderHome(){
   const now=new Date(), wd=HARI[now.getDay()], nama=S.nama||'Siswa';
   const bulan = now.toLocaleDateString('id-ID',{month:'long'});
   $('h-date').textContent=(wd+', '+now.getDate()+' '+bulan).toUpperCase();
   const h=now.getHours();
-  const sapa = h<11?'Semangat Pagi':(h<15?'Semangat Siang':(h<18?'Semangat Sore':'Malam Tenang'));
+  const sapa = h<11?'Morningg':(h<15?'Good Afternoon':(h<18?'Selamat Soree':'Malam Yang Tenang'));
   $('h-greet').textContent = S.nama? sapa+', '+nama+'! 👋' : 'Selamat datang! 👋';
   $('h-sub').textContent = S.nama? 'Semua catatanmu tersimpan di perangkat. Lanjutkan belajarmu!' : 'Isi namamu di Pengaturan ⚙️';
 
-  $('s-pr').textContent = S.pr.filter(p=>!p.d).length;
+  const cnt=LOGIC.taskCounts(S.pr, iso(now));
+  $('s-pr').textContent = cnt.open;
+  void 0;
   const listToday = S.jadwal.filter(j=>j.day===wd).sort((a,b)=>a.start.localeCompare(b.start));
   $('s-mapel').textContent = listToday.length;
   const todayIso=iso(now), todayE=S.hist.find(e=>e.d===todayIso);
   $('s-fokus').textContent = ((todayE&&todayE.m)||0)+'m';
+  void cnt; void todayIso;
 
   // timeline hari ini
   const nm=nowMin();
@@ -221,9 +228,9 @@ function renderHome(){
     $('tl').innerHTML = '<div class="empty"><div class="e-ico">🗓️</div>'+(wd==='Minggu'||wd==='Sabtu'?'Hari libur — saatnya mengisi energi buat besok!':'Belum ada jadwal hari ini.<br>Tambahkan di tab Jadwal.')+'</div>';
   }
 
-  // PR dekat
-  const open = S.pr.filter(p=>!p.d).sort((p,q)=>(p.due||'zzz')<(q.due||'zzz')?-1:1);
-  $('h-pr').innerHTML = open.length ? open.slice(0,3).map((p)=>prItem(p, S.pr.indexOf(p), true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada tugas mendekati tenggat. Mantap!</div>';
+  // PR dekat: pilih open, disortir due dulu (LOGIC), tampilkan 3 terdekat
+  const rows=LOGIC.filterTasks(S.pr,{status:'open'}).slice(0,3);
+  $('h-pr').innerHTML = rows.length ? rows.map((p)=>taskItem(p,true)).join('') : '<div class="empty"><div class="e-ico">🎉</div>Tidak ada tugas mendekati tenggat. Mantap!</div>';
 
   // quote hari
   $('h-quote').textContent = '\u201C'+QUOTES[new Date().getDate()%QUOTES.length]+'\u201D';
@@ -257,54 +264,160 @@ function statusJd(j,nm,idx){
     </div>`;
 }
 
-// ---------- TUGAS ----------
-let prFilter='all';
-function setFilter(f,el){ prFilter=f; document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('on')); el.classList.add('on'); renderPR(); }
-function dueInfo(p){
-  if(!p.due) return null;
-  const t=iso(new Date());
-  if(p.due<t) return {cls:'late', tag:'TERLAMBAT', color:'#dc2626'};
-  if(p.due===t) return {cls:'duetoday', tag:'HARI INI', color:'#b45309'};
-  const n=Math.round((new Date(p.due+'T00:00')-new Date(t+'T00:00'))/864e5);
-  return {cls:'', tag:n+' hari lagi', color:'#64748b'};
+// ---------- TUGAS (canonical: S.pr rows; LOGIC owns filter/sort) ------
+let prFilter='all', prioF='', prQ='';
+function setFilter(f,el){ prFilter=f; document.querySelectorAll('#seg-tugas .pr-filters:first-of-type .fchip').forEach(b=>b.classList.remove('on')); el.classList.add('on'); renderPR(); }
+function setPrioF(v,el){ prioF=v; document.querySelectorAll('#prio-filters .fchip').forEach(b=>b.classList.toggle('on', b.dataset.pf===String(v))); renderPR(); }
+function tqChange(el){ prQ=el.value; renderPR(); }
+function prSession(){
+  const todayIso=LOGIC.dayStr();
+  const f={status:prFilter==='open'||prFilter==='done'?prFilter:'all', q:prQ, prio:prioF};
+  if(prFilter==='today') f.due=todayIso;
+  let rows=LOGIC.filterTasks(S.pr,f);
+  // overdue first inside "all"/"open"
+  if(prFilter!=='done') rows=[...rows.filter(t=>LOGIC.isOverdue(t,todayIso)), ...rows.filter(t=>!LOGIC.isOverdue(t,todayIso))];
+  return rows;
 }
 function renderPR(){
-  let rows = S.pr.map((p,i)=>({p,i})).filter(({p})=>
-    prFilter==='all' ? true : prFilter==='done' ? p.d : !p.d && (prFilter!=='today' || p.due===iso(new Date()))
-  );
-  rows.sort((a,b)=> (a.p.d-b.p.d) || ((a.p.due||'zzz').localeCompare(b.p.due||'zzz')));
-  $('list-pr').innerHTML = rows.length ? rows.map(({p,i})=>prItem(p,i,false)).join('')
-    : '<div class="empty"><div class="e-ico">'+(prFilter==='done'?'🗑️':'🎉')+'</div>'+(prFilter==='done'?'Belum ada yang selesai.':'Tidak ada tugas di sini.')+'</div>';
-
-  const total=S.pr.length, selesai=S.pr.filter(p=>p.d).length;
+  const rows=prSession(), total=S.pr.length, selesai=S.pr.filter(p=>p.d).length;
+  $('list-pr').innerHTML = rows.length ? rows.map(p=>taskItem(p,false)).join('')
+    : '<div class="empty"><div class="e-ico">'+(prFilter==='done'?'🗑️':'🎉')+'</div>'+(S.pr.length?'Tidak ada tugas di sini.':'Belum ada tugas. Tandai yang pertama di tombol Baru.')+'</div>';
   $('pr-prog').textContent=selesai+'/'+total+' selesai';
   $('pr-bar').style.width = total? (selesai/total*100)+'%':'0';
 }
-function prItem(p, i, compact){
-  const di=dueInfo(p);
+const PRIO_LBL={high:'Tinggi',normal:'Normal',low:'Santai'};
+const PRIO_COL={high:'#dc2626',normal:'#64748b',low:'#0d9488'};
+function dueTag(p){
+  if(!p.due) return null;
+  const todayIso=LOGIC.dayStr();
+  if(!p.d && LOGIC.isOverdue(p,todayIso)) return {tag:'TERLAMBAT', color:'#dc2626'};
+  if(p.due===todayIso) return {tag:'Hari ini', color:'#b45309'};
+  if(!p.d){
+    const n=Math.round((LOGIC.parseDay(p.due)-LOGIC.parseDay(todayIso))/864e5);
+    return {tag:n+' hari lagi', color:'#64748b'};
+  }
+  return {tag:'Selesai', color:'#16a34a'};
+}
+function taskItem(p, compact){
+  const dt=dueTag(p);
   return `
-  <div class="item ${p.d?'fade':''} ${di&&!p.d?di.cls:''}" onclick="tog(${i})">
+  <div class="item ${p.d?'fade':''}" onclick="taskFormOpen('${p.id}')">
+    <button class="tick ${p.d?'on':''}" onclick="event.stopPropagation();tog('${p.id}')" aria-label="${p.d?'Buka kembali':'Tandai selesai'}">${p.d?'<svg class="ii"><use href="#i-check"/></svg>':''}</button>
     <div style="flex:1;min-width:0">
       <div class="t1 ${p.d?'done-t':''}">${esc(p.t)}</div>
       <div class="t2" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:5px">
-        <span class="tag" style="background:${colorOf(p.m)}">${esc(p.m)}</span>
-        ${di&&!p.d?`<span class="tag" style="background:transparent;color:${di.color};border:1.5px solid ${di.color}">${di.tag}</span>`:''}
-        ${p.d?'<span class="tag" style="background:#16a34a">SELESAI</span>':''}
+        <span class="tag" style="background:${colorOf(p.m)}">${esc(p.m||'—')}</span>
+        ${p.priority&&p.priority!=='normal'?`<span class="tag" style="background:transparent;color:${PRIO_COL[p.priority]};border:1.5px solid ${PRIO_COL[p.priority]}">Prio ${PRIO_LBL[p.priority]||p.priority}</span>`:''}
+        ${dt&&!compact?`<span class="tag" style="background:transparent;color:${dt.color};border:1.5px solid ${dt.color}">${dt.tag}${p.due?' · '+p.due:''}</span>`:''}
       </div>
     </div>
-    <button class="btn-ico" onclick="event.stopPropagation();del(${i})">🗑️</button>
+    <button class="btn-ico" onclick="event.stopPropagation();taskDel('${p.id}')"><svg class="ii red"><use href="#i-trash"/></svg></button>
   </div>`;
 }
-function tambahPR(){
-  const t=$('in-pr').value.trim(), m=$('in-mapel').value||'', due=$('in-due').value||'';
-  if(!t){ toast('Tulis dulu judul tugasnya'); return; }
-  LocalDb.taskAdd({t,m,due}).then(id=>{ S.pr.unshift({id,t,m,d:false,due}); renderPR(); }).catch(persist);
-  $('in-pr').value=''; $('in-due').value='';
-  toast('Tugas ditambahkan ✓');
+// alias for home compact list
+function prItem(p, i, compact){ return taskItem(p, compact||true); }
+function tog(id){
+  const p=S.pr.find(x=>x.id===id); if(!p) return;
+  p.d=!p.d; LocalDb.taskSetDone(id,p.d).catch(persist);
+  renderPR(); if($('v-home').style.display!=='none') renderHome(); renderProg();
+  if(p.d){ buzz(200); toast('Tugas selesai — kerja bagus!'); if(F.state==='running'){} }
 }
-function tog(i){ const p=S.pr[i]; p.d=!p.d; LocalDb.taskSetDone(p.id,p.d).catch(persist); renderPR(); if(p.d){ buzz(200); toast('Tugas selesai. Kerja bagus!'); } }
-function del(i){ if(confirm('Hapus tugas ini?')){ const p=S.pr[i]; LocalDb.taskDel(p.id).catch(persist); S.pr.splice(i,1); renderPR(); } }
+function taskDel(id){
+  const p=S.pr.find(x=>x.id===id); if(!p) return;
+  if(!confirm('Hapus tugas "'+p.t+'"?')) return;
+  LocalDb.taskDel(id).catch(persist);
+  S.pr=S.pr.filter(x=>x.id!==id);
+  renderPR(); renderHome(); renderCal(); renderProg();
+  toast('Tugas dihapus');
+}
+// ---- create/edit sheet (create juga dipakai quick-add beranda) ----
+function taskFormOpen(id){
+  const t= id? S.pr.find(x=>x.id===id) : {t:'',m:'',due:'',notes:'',priority:'normal'};
+  if(id&&!t){ toast('Tugas tidak ditemukan'); return; }
+  const opts=S.mapel.map(r=>'<option value="'+esc(r.name)+'"'+(t.m===r.name?' selected':'')+'>'+esc(r.name)+'</option>').join('');
+  const prioOpt=v=>'<option value="'+v+'"'+(t.priority===v?' selected':'')+'>'+PRIO_LBL[v]+'</option>';
+  $('sheet-body').innerHTML=`
+    <div class="sheet-head"><h3>${id?'Ubah tugas':'Tugas baru'}</h3>
+      <button class="btn-mini ghost" onclick="sheetClose()"><svg class="ii"><use href="#i-x"/></svg></button></div>
+    <label class="fl">Judul *</label>
+    <input id="tf-title" placeholder="Contoh: Latihan Modul Koding Bab 2" value="${esc(t.t)}" maxlength="80">
+    <div class="field-row">
+      <div><label class="fl">Mata pelajaran</label><select id="tf-subject">${opts||'<option value="">— Kosong —</option>'}</select></div>
+      <div><label class="fl">Prioritas</label><select id="tf-prio">${prioOpt('high')}${prioOpt('normal')}${prioOpt('low')}</select></div>
+    </div>
+    <label class="fl">Batas pengumpulan</label>
+    <input type="date" id="tf-due" value="${esc(t.due||'')}">
+    <label class="fl">Catatan (opsional)</label>
+    <textarea id="tf-notes" placeholder="Detail tugas…" style="min-height:70px">${esc(t.notes||'')}</textarea>
+    <p id="tf-err" style="color:#dc2626;font-size:11.5px;min-height:16px;margin-top:6px"></p>
+    <div class="field-row" style="margin-top:6px">
+      ${id?'<button class="btn-danger" style="margin-top:0;flex:0 0 44px" onclick="taskDel(\''+id+'\');sheetClose()"><svg class="ii red"><use href="#i-trash"/></svg></button>':''}
+      <button class="btn-primary" style="margin-top:0" onclick="taskSave(${id?"'"+id+"'":'null'})">${id?'Simpan perubahan':'Simpan tugas'}</button>
+    </div>`;
+  $('sheet').style.display='flex';
+  $('tf-title').focus();
+}
+async function taskSave(id){
+  const v=($('tf-title').value||'').trim();
+  if(!v){ $('tf-err').textContent='Judul wajib diisi.'; return; }
+  const due=($('tf-due').value||'').trim();
+  if(due && !LOGIC.parseDay(due)){ $('tf-err').textContent='Tanggal tidak valid.'; return; } // no invented deadline
+  const task={t:v,m:$('tf-subject').value,due:due,notes:($('tf-notes').value||'').trim(),prio:$('tf-prio').value};
+  try{
+    if(id){
+      await LocalDb.taskUpdate(id,task);
+      Object.assign(S.pr.find(x=>x.id===id),{t:task.t,m:task.m,due:task.due,notes:task.notes,priority:task.prio});
+      toast('Perubahan disimpan ✓');
+    }else{
+      const nid=await LocalDb.taskAdd(task);
+      S.pr.unshift({id:nid,...task,d:false,created_at:Date.now()});
+      toast('Tugas ditambahkan ✓');
+    }
+    sheetClose(); renderPR(); renderCal(); renderHome(); renderProg();
+  }catch(e){ $('tf-err').textContent='Gagal menyimpan: '+(e.message||e); }
+}
+function sheetClose(){ $('sheet').style.display='none'; $('sheet-body').innerHTML=''; }
+function renderTugas(){
+  renderPR(); renderCal(); renderJd();
+}
 
+// === KALENDER (month grid, marker = jumlah tugas ber-tanggal itu) ===
+let kalY=0, kalM=0, kalSel=null;
+function renderCal(){
+  const now=new Date();
+  if(!kalSel){ kalY=now.getFullYear(); kalM=now.getMonth(); kalSel=LOGIC.dayStr(); }
+  $('kal-title').textContent=new Date(kalY,kalM,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'});
+  const grid=LOGIC.monthGrid(kalY,kalM);
+  const todayIso=LOGIC.dayStr();
+  const byDue={}; S.pr.forEach(t=>{ if(t.due) byDue[t.due]=(byDue[t.due]||0)+1; });
+  $('cal-head').innerHTML=['Sn','Sl','Rb','Km','Jm','Sb','Mg'].map(d=>'<span class="cal-h">'+d+'</span>').join('');
+  $('cal-body').innerHTML=grid.cells.map(d=>{
+    if(!d) return '<span></span>';
+    const iso=LOGIC.dayStr(d);
+    const cls=['cal-d'];
+    if(iso!==todayIso && d.getMonth()!==kalM) {} // always full month cells
+    if(iso===todayIso) cls.push('today');
+    if(iso===kalSel) cls.push('sel');
+    if(d.getDay()===0) cls.push('sun');
+    return '<button class="'+cls.join(' ')+'" onclick="kalPick(\''+iso+'\')">'+d.getDate()+(byDue[iso]?'<i></i>':'')+'</button>';
+  }).join('');
+  $('kal-sub').textContent=byDue[kalSel]? (byDue[kalSel]+' tugas pada tanggal ini') : 'Tidak ada tugas tanggal ini.';
+  $('kal-day-title').textContent='TUGAS '+LOGIC.parseDay(kalSel).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'short'});
+  const rows=LOGIC.filterTasks(S.pr,{due:kalSel,status:'all'});
+  $('list-kal-day').innerHTML=rows.length?rows.map(p=>taskItem(p,true)).join(''):'<div class="empty">Kosong. Tanggal ini bebas tugas!</div>';
+}
+function kalShift(dir){ kalM+=dir; if(kalM<0){kalM=11;kalY--;} if(kalM>11){kalM=0;kalY++;} renderCal(); }
+function kalPick(iso){ kalSel=iso; renderCal(); }
+function prSeg(which){
+  document.querySelectorAll('#pr-seg .seg-b').forEach(b=>b.classList.toggle('on',b.dataset.seg===which));
+  $('seg-tugas').style.display=which==='tugas'?'block':'none';
+  $('seg-kal').style.display=which==='kal'?'block':'none';
+  $('seg-jd').style.display=which==='jd'?'block':'none';
+}
+function setJdSeg(){ prSeg('jd'); }
+// home quick actions re-route
+function tambahPR(){ taskFormOpen(); }
+function goJadwal(){ tab('pr'); prSeg('jd'); }
 // ---------- JADWAL ----------
 let jdDay=null;
 const D_LIST=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
@@ -338,52 +451,112 @@ function tambahJd(){
 }
 function delJd(i){ if(confirm('Hapus jam pelajaran ini?')){ LocalDb.scheduleDel(S.jadwal[i].id).catch(persist); S.jadwal.splice(i,1); renderJd(); } }
 
-// ---------- FOKUS ----------
-let dur=25*60, sisa=25*60, tmr=null, preset=25, paused=false;
-function fmt(x){ return pad(Math.floor(x/60))+':'+pad(x%60); }
-function setPreset(p,el){
-  preset=p; dur=p*60; sisa=dur; stopT(); paused=false; S.preset=p;
-  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on')); el.classList.add('on');
-  ring(0); $('timer-box').textContent=fmt(sisa); $('ring-state').textContent='SIAP MULAI';
-  $('btn-timer').textContent='▶ Mulai Belajar';
-  save().catch(persist);
-}
+// ---------- FOKUS: FSM ber-timestamp (LOGIC), recover pas app mati ----
+let F={ state:null, kv:null, tmr:null };  // state: idle/running/paused/… ; kv: persisted LOGIC state
+function focusSetSubject(el){ S.sesSubject=el.value; LocalDb.setSetting('ses_subject',S.sesSubject||'').catch(persist); }
+function fmt(x){ return pad(Math.floor(x/60000))+':'+pad(Math.floor(x/1000)%60); }
 function ring(pct){ $('ring').style.background='conic-gradient(var(--a) '+pct+'%, var(--ring-bg) '+pct+'%)'; }
-function stopT(){ clearInterval(tmr); tmr=null; }
-function toggleTimer(){
-  if(tmr){ stopT(); paused=true; $('btn-timer').textContent='▶ Lanjutkan'; $('ring-state').textContent='DIJEDA'; return; }
-  tmr=setInterval(()=>{
-    sisa--;
-    ring(((dur-sisa)/dur*100)); $('timer-box').textContent=fmt(sisa);
-    if(sisa<=0) selesai();
-  },1000);
-  if(!paused) $('ring-state').textContent='FOKUS • '+preset+' MENIT';
-  $('btn-timer').textContent='⏸ Jeda';
+function focusPaint(ms){
+  $('timer-box').textContent=fmt(ms);
+  const pct=F.kv&&F.kv.preset?(((F.kv.preset*60000-ms)/(F.kv.preset*60000))*100):0;
+  ring(Math.max(0,Math.min(100,pct)));
+  $('btn-timer').innerHTML = F.state==='running'
+    ? '<svg class="ii"><use href="#i-pause"/></svg><span>Jeda</span>'
+    : F.state==='paused' ? '<svg class="ii"><use href="#i-play"/></svg><span>Lanjutkan</span>'
+    : '<svg class="ii"><use href="#i-play"/></svg><span>Mulai belajar</span>';
+  $('ring-state').textContent = F.state==='running' ? 'FOKUS · '+(F.kv.preset)+' MENIT'
+    : F.state==='paused' ? 'DIJEDA' : F.state==='done' ? 'SELESAI' : 'SIAP MULAI';
+  $('btn-cancel').style.display=(F.state==='running'||F.state==='paused')?'':'none';
 }
-function resetTimer(){
-  stopT(); paused=false; sisa=dur;
-  ring(0); $('timer-box').textContent=fmt(sisa);
-  $('ring-state').textContent='SIAP MULAI'; $('btn-timer').textContent='▶ Mulai Belajar';
+async function focusPersist(){
+  await LocalDb.setSetting('fstate', F.kv? JSON.stringify(F.kv):'').catch(persist);
 }
-function selesai(){
-  stopT(); paused=false;
-  beep(); buzz(1500);
-  const d=iso(new Date());
-  LocalDb.focusAdd(d, preset).then(()=>LocalDb.focusByDay()).then(focus=>{
+function focusStartTick(){
+  if(F.tmr) clearInterval(F.tmr);
+  F.tmr=setInterval(focusTickUI,250);
+}
+function focusTickUI(){
+  if(F.state!=='running'||!F.kv) return;
+  const now=Date.now();
+  const ms=LOGIC.focusTick(F.kv,now);
+  focusPaint(ms);
+  if(ms<=0) focusSelesai();
+}
+function focusRefreshHist(){
+  return LocalDb.focusByDay().then(focus=>{
     S.hist = Object.keys(focus).map(day=>({d:day, m:focus[day]})).filter(e=>e.m>0).sort((a,b)=>a.d<b.d?-1:1).slice(-30);
     renderBars(); renderStreak();
-  }).catch(persist);
+  });
+}
+async function toggleTimer(){
+  const ev=LOGIC.focusEvents(F.kv&&{st:F.state});
+  if(F.state==='idle'){                      // idle → running (start sesi baru)
+    F.kv=LOGIC.focusStart(S.preset||25, Date.now());
+    F.state='running'; focusStartTick(); focusPaint(F.kv.remaining);
+    await focusPersist(); toast('Fokus '+F.kv.preset+' menit dimulai — layar lain boleh dibuka.');
+    return;
+  }
+  if(F.state==='running'){                   // running → paused
+    F.kv=LOGIC.focusPause(F.kv,Date.now()); F.state='paused';
+    if(F.tmr){clearInterval(F.tmr);F.tmr=null;}
+    focusPaint(F.kv.remaining); await focusPersist();
+    return;
+  }
+  if(F.state==='paused'){                    // paused → running (sesi sama)
+    F.kv=LOGIC.focusResume(F.kv,Date.now()); F.state='running';
+    focusStartTick(); focusPaint(F.kv.remaining); await focusPersist();
+    return;
+  }
+}
+async function focusSelesai(){               // complete: exactly once
+  if(!F.kv||F.state!=='running') return;
+  const fin=LOGIC.focusComplete(F.kv);
+  if(!fin) return;                            // already done — skip insert
+  if(F.tmr){clearInterval(F.tmr);F.tmr=null;}
+  F.state='done';
+  beep(); buzz(1500);
+  const preset=F.kv.preset;
+  F.kv=null; F.state='idle'; await focusPersist();
+  await LocalDb.focusAdd(iso(new Date()), preset);
+  await focusRefreshHist();
+  focusPaint((S.preset||25)*60000);
+  $('ring-state').textContent='SELESAI';
   toast('Fokus '+preset+' menit selesai! 🎉');
-  sisa=dur; ring(0); $('timer-box').textContent=fmt(sisa);
-  $('ring-state').textContent='SELESAI ✓';
-  $('btn-timer').textContent='▶ Mulai Lagi';
+}
+async function cancelTimer(){                // cancelled ≠ sesi selesai
+  if(F.state!=='running'&&F.state!=='paused') return;
+  F.kv=LOGIC.focusCancel(F.kv||{}); F.state='idle';
+  if(F.tmr){clearInterval(F.tmr);F.tmr=null;}
+  F.kv=null; await focusPersist();
+  focusPaint((S.preset||25)*60000); $('ring-state').textContent='SIAP MULAI';
+  toast('Sesi dibatalkan — tidak masuk statistik.');
+}
+async function setPreset(p,el){
+  if(F.state==='running'||F.state==='paused'){ toast('Stop sesi dulu untuk ganti durasi.'); return; }
+  S.preset=p; save().catch(persist);
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on')); el.classList.add('on');
+  focusPaint(p*60000);
+}
+async function focusRecover(){               // boot/background: compute from clock
+  const raw=await LocalDb.getSetting('fstate');
+  if(raw){ try{ F.kv=JSON.parse(raw); }catch(e){ F.kv=null; } }
+  const st=F.kv&&F.kv.st;
+  F.state=(st==='running'||st==='paused')?st:'idle';
+  if(F.state==='idle'||!F.kv){ F.kv=null; return focusPaint((S.preset||25)*60000); }
+  if(F.state==='running'){
+    const ms=LOGIC.focusTick(F.kv,Date.now());  // timestamp-based: latar/layar mati tetap akurat
+    if(ms<=0) return focusSelesai();
+    F.kv.remaining=ms; focusStartTick(); focusPaint(ms);
+  } else {
+    focusPaint(F.kv.remaining||0);
+  }
 }
 function renderBars(){
   const days=[];
   for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d); }
-  const max=Math.max(30, ...days.map(d=>{ const e=S.hist.find(x=>x.d===iso(d)); return e?e.m:0; }));
+  const max=Math.max(30, ...days.map(d=>{ const e=S.hist.find(x=>x.d===LOGIC.dayStr(d)); return e?e.m:0; }));
   $('bars').innerHTML = days.map(d=>{
-    const e=dayMin(iso(d));
+    const e=dayMin(LOGIC.dayStr(d));
     const h=Math.round((e/max)*70)+5;
     const lbl=HARI3[d.getDay()];
     return '<div class="bar-col '+(d.getDate()===new Date().getDate()?'now':'')+'"><i style="height:'+h+'px"></i><span>'+lbl+'</span></div>';
@@ -392,9 +565,132 @@ function renderBars(){
 function dayMin(d){ const e=S.hist.find(x=>x.d===d); return e?e.m:0; }
 function renderStreak(){
   let streak=0, d=new Date();
-  if(dayMin(iso(d))===0) d.setDate(d.getDate()-1);
-  while(dayMin(iso(d))>0){ streak++; d.setDate(d.getDate()-1); }
+  if(dayMin(LOGIC.dayStr(d))===0) d.setDate(d.getDate()-1);
+  while(dayMin(LOGIC.dayStr(d))>0){ if(streak>60) break; streak++; d.setDate(d.getDate()-1); }
   $('streak-sub').innerHTML = streak>0? ('🔥 Streak belajarmu: <b>'+streak+'</b> hari berturut-turut — pertahankan ya!') : 'Belajar fokus hari ini untuk memulai streak 🔥!';
+}
+function renderFokus(){
+  renderBars(); renderStreak();
+  focusPaint(F.state==='idle'? (S.preset||25)*60000 : F.kv.remaining);
+  const chips=document.querySelectorAll('.preset');
+  chips.forEach((b,idx)=>{ const p=[10,25,50][idx]; b.classList.toggle('on', p===S.preset); });
+  // subject select shares mapel list
+  const sel=$('fs-subject');
+  if(sel){ sel.innerHTML='<option value="">— Tanpa mapel —</option>'+S.mapel.map(r=>'<option'+(r.name===S.sesSubject?' selected':'')+'>'+esc(r.name)+'</option>').join(''); }
+}
+
+// ---------- CATATAN ----------
+let notQ='', notSubject='';
+function nqChange(el){ notQ=el.value; renderNotes(); }
+function renderNotes(){
+  let rows=S.notes.filter(n=>!notSubject||n.subject===notSubject);
+  if(notQ){ const q=notQ.toLowerCase(); rows=rows.filter(n=>(n.title+' '+n.body).toLowerCase().includes(q)); }
+  $('list-notes').innerHTML = rows.length ? rows.map(n=>noteItem(n)).join('')
+    : '<div class="empty"><div class="e-ico">'+(S.notes.length?'🔎':'📝')+'</div>'+(notQ||notSubject?'Catatan tidak ditemukan.':'Belum ada catatan. Buat yang pertama!')+'</div>';
+  const ses=[...new Set(S.notes.map(n=>n.subject).filter(Boolean))];
+  $('note-subjects').innerHTML = ses.length
+    ? '<button class="fchip'+(notSubject===''?' on':'')+'" onclick="noteFilterSubject(\'\')">Semua</button>'
+      + ses.map(ss=>'<button class="fchip'+(notSubject===ss?' on':'')+'" onclick="noteFilterSubject(\''+esc(ss)+'\')">'+esc(ss)+'</button>').join('')
+    : '';
+}
+function noteFilterSubject(ss){ notSubject=ss; renderNotes(); }
+function noteItem(n){
+  return `
+  <div class="note-card ${n.pinned?'pinned':''}" onclick="noteFormOpen('${n.id}')">
+    <div class="note-pin">${n.pinned?'<svg class="ii red"><use href="#i-pin"/></svg>':''}</div>
+    <div class="note-title">${esc(n.title)}</div>
+    <div class="note-body">${esc((n.body||'').length>110?(n.body||'').slice(0,110)+'…':(n.body||''))}</div>
+    <div class="t2" style="margin-top:8px;display:flex;gap:6px;align-items:center">
+      ${n.subject?`<span class="tag" style="background:${colorOf(n.subject)}">${esc(n.subject)}</span>`:''}
+      <span class="tag ghost">${new Date(n.updated_at).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</span>
+      <button class="btn-ico" style="margin-left:auto" onclick="event.stopPropagation();notePin('${n.id}')" aria-label="Pin catatan"><svg class="ii ${n.pinned?'':'mutedf'}"><use href="#i-pin"/></svg></button>
+      <button class="btn-ico" onclick="event.stopPropagation();noteDelete('${n.id}')" aria-label="Hapus catatan"><svg class="ii red"><use href="#i-trash"/></svg></button>
+    </div>
+  </div>`;
+}
+function notePin(id){
+  const n=S.notes.find(x=>x.id===id); if(!n) return;
+  n.pinned=!n.pinned;
+  LocalDb.notePin(id,n.pinned).then(()=>{ renderNotes(); S.notes.sort((a,b)=>(b.pinned-a.pinned)||(b.updated_at-a.updated_at)); renderNotes(); }).catch(persist);
+}
+function noteDelete(id){
+  const n=S.notes.find(x=>x.id===id); if(!n) return;
+  if(!confirm('Hapus catatan "'+n.title+'"?')) return;
+  LocalDb.noteDel(id).catch(persist);
+  S.notes=S.notes.filter(x=>x.id!==id);
+  renderNotes(); toast('Catatan dihapus');
+}
+function noteFormOpen(id){
+  const n=id? S.notes.find(x=>x.id===id) : {title:'',subject:S.sesSubject||'',body:''};
+  if(id&&!n){ toast('Catatan tidak ditemukan'); return; }
+  const opts='<option value="">— Tanpa mapel —</option>'+S.mapel.map(r=>'<option value="'+esc(r.name)+'"'+(n.subject===r.name?' selected':'')+'>'+esc(r.name)+'</option>').join('');
+  $('sheet-body').innerHTML=`
+    <div class="sheet-head"><h3>${id?'Ubah catatan':'Catatan baru'}</h3>
+      <button class="btn-mini ghost" onclick="sheetClose()"><svg class="ii"><use href="#i-x"/></svg></button></div>
+    <label class="fl">Judul *</label>
+    <input id="nf-title" placeholder="Contoh: Ringkasan Trigonometri" value="${esc(n.title)}" maxlength="60">
+    <label class="fl">Mata pelajaran</label>
+    <select id="nf-subject">${opts}</select>
+    <label class="fl">Isi catatan</label>
+    <textarea id="nf-body" placeholder="Tulis catatanmu di sini…" style="min-height:130px">${esc(n.body||'')}</textarea>
+    <p id="nf-err" style="color:#dc2626;font-size:11.5px;min-height:16px;margin-top:6px"></p>
+    <div class="field-row" style="margin-top:6px">
+      ${id?'<button class="btn-danger" style="margin-top:0;flex:0 0 44px" onclick="noteDelete(\''+id+'\');sheetClose()"><svg class="ii red"><use href="#i-trash"/></svg></button>':''}
+      <button class="btn-primary" style="margin-top:0" onclick="noteSave(${id?"'"+id+"'":'null'})">Simpan catatan</button>
+    </div>`;
+  $('sheet').style.display='flex';
+  $('nf-title').focus();
+}
+async function noteSave(id){
+  const v=($('nf-title').value||'').trim();
+  if(!v){ $('nf-err').textContent='Judul wajib diisi.'; return; }
+  const rec={title:v,subject:$('nf-subject').value,body:($('nf-body').value||'').trim()};
+  try{
+    if(id){
+      await LocalDb.noteUpdate(id,rec);
+      Object.assign(S.notes.find(x=>x.id===id),rec,{updated_at:Date.now()});
+      toast('Perubahan disimpan ✓');
+    }else{
+      await LocalDb.noteAdd(rec);
+      toast('Catatan tersimpan ✓');
+      await hydrateBasic();
+    }
+    S.notes.sort((a,b)=>(b.pinned-a.pinned)||(b.updated_at-a.updated_at));
+    sheetClose(); renderNotes();
+  }catch(e){ $('nf-err').textContent='Gagal menyimpan: '+(e.message||e); }
+}
+async function hydrateBasic(){ try{ S.notes=(await LocalDb.notesAll()).map(r=>({id:r.id,title:r.title,body:r.body,subject:r.subject,pinned:!!r.pinned,updated_at:r.updated_at})); }catch(e){ console.error(e); } }
+
+// ---------- PROGRES ----------
+let pgDays=7;
+function progRange(n,el){ pgDays=n; document.querySelectorAll('#prog-range .fchip').forEach(b=>b.classList.remove('on')); el.classList.add('on'); renderProg(); }
+function renderProg(){
+  const now=LOGIC.dayStr();
+  const from=new Date(); from.setDate(from.getDate()-(pgDays-1));
+  const fromIso=LOGIC.dayStr(from);
+  const c=LOGIC.taskCounts(S.pr,now);
+  $('pg-rate').textContent=c.rate==null?'0%':c.rate+'%';
+  $('pg-done').textContent=c.done;
+  $('pg-late').textContent=c.overdue;
+  // fokus bar per hari (range)
+  const days=[];
+  for(let i=pgDays-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d); }
+  const max=Math.max(30,...days.map(d=>{const e=S.hist.find(x=>x.d===LOGIC.dayStr(d));return e?e.m:0;}));
+  $('pg-bars').innerHTML=days.map((d,i)=>{
+    const e=dayMin(LOGIC.dayStr(d));
+    const h=Math.round((e/max)*70)+5;
+    const showLbl=pgDays<=7||i===pgDays-1||i%7===0;
+    const lbl=showLbl?HARI3[d.getDay()]:'';
+    return '<div class="bar-col '+(i===pgDays-1?'now':'')+'"><i style="height:'+h+'px" title="'+e+'m"></i><span>'+lbl+'</span></div>';
+  }).join('');
+  const tot=days.reduce((a,d)=>a+dayMin(LOGIC.dayStr(d)),0);
+  $('pg-total').textContent='Total fokus '+pgDays+' hari: '+Math.floor(tot/60)+' jam '+tot%60+' menit.';
+  // per mapel
+  const rows=LOGIC.subjectStats(S.pr,fromIso,now).filter(r=>r.subject!=='').sort((a,b)=>b.total-a.total);
+  $('pg-subjects').innerHTML=rows.length?rows.map(r=>{
+    const pct=Math.round(100*r.done/r.total);
+    return `<div class="pg-row"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12px">${esc(r.subject)}</b><span style="font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums">${r.done}/${r.total} · ${pct}%</span></div><div class="bar" style="margin:5px 0 8px"><div class="bar-fill" style="width:${pct}%"></div></div></div>`;
+  }).join(''):'<div class="empty">Belum ada tugas pada rentang ini.</div>';
 }
 
 // ---------- RAPOR ----------
@@ -583,16 +879,17 @@ function resetAll(){
 }
 
 // ---------- NAV ----------
-const TABS=['home','pr','jadwal','fokus','nilai','set'];
+const TABS=['home','pr','fokus','notes','prog','set'];   // ponytail: set dipanggil via avatar/gear, bukan nav
 function tab(target){
   TABS.forEach(k=>{
     $('v-'+k).style.display=(k===target?'block':'none');
     $('b-'+k).className='nav-item'+(k===target?' active':'');
   });
   if(target==='home') renderHome();
-  if(target==='jadwal') renderJd();
-  if(target==='pr') renderPR();
-  if(target==='fokus'){ renderBars(); renderStreak(); }
+  if(target==='pr') renderTugas();
+  if(target==='fokus') renderFokus();
+  if(target==='notes') renderNotes();
+  if(target==='prog') renderProg();
   if(target==='set'){ $('in-nama').value=S.nama; $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON'; refreshIdentityCard(); renderMapelPick(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -631,7 +928,7 @@ function refreshIdentityCard(){
 // ---------- INIT ----------
 function renderAll(){
   applyAcc(S.accent); applyDark();
-  renderMapelSelect(); renderMapelList(); renderMapelPick(); renderHome(); renderPR(); renderJd(); renderBars(); renderStreak();
+  renderMapelSelect(); renderMapelList(); renderMapelPick(); renderHome(); renderTugas(); renderFokus(); renderNotes(); renderProg();
   $('in-nama').value=S.nama;
   $('dark-btn').textContent=S.dark===false?'🌙 Mode Gelap: OFF':S.dark==='black'?'⬛ Mode Gelap: HITAM':'☀️ Mode Gelap: ON';
   refreshIdentityCard();
@@ -835,6 +1132,7 @@ async function doSignup(){
     $('ob').style.display='flex';
     return;
   }
+  await focusRecover();               // timer ber-timestamp: lanjut sesi yang masih hidup
   if(!S.ob){ $('ob').style.display='flex'; } else { renderAll(); }
 
   // ---- Phase 2: session restore + first happy-path sync -----------
@@ -892,12 +1190,23 @@ async function doSignup(){
     const { App } = Capacitor.Plugins;
     App.addListener('appStateChange', (st) => {
       if (st.isActive && Auth.session) manualSync().catch(()=>{});
+      if (st.isActive) focusRecover().catch(()=>{});   // hitung ulang timer pas window kembali aktif
+      if (!st.isActive && F.state==='running') {       // pause FTSE saat background: timestamp handles it
+        focusPaint(F.kv?LOGIC.focusTick(F.kv,Date.now()):0);
+      }
     });
+    // Android back: sheet → close, lalu → beranda
+    App.addListener('backButton', () => {
+      if($('sheet').style.display==='flex'){ sheetClose(); return; }
+      if($('auth')&&$('auth').style.display==='flex'){ $('auth').style.display='none'; return; }
+      if(TABS.current!=='home') tab('home');
+    });
+    TABS.current='home';
   } catch (e) { console.warn('autolisten unavailable', e); }
 })();
 
 // info pembaruan versi
-const VER='2.0-mvp4';
+const VER='3.0.0';
 if(localStorage.getItem('sp_ver')!==VER){
   localStorage.setItem('sp_ver',VER);
 }

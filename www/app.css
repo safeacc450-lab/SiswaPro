@@ -386,3 +386,69 @@ body.black .lp-fico{background:#101018}
 @media (prefers-reduced-motion:reduce){
   .lp-google,.lp-submit{transition:none}
 }
+
+/* ======================= 3.0: seg, sheet, calendar, notes, ic ================= */
+.ii{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;flex-shrink:0}
+.ii.red{color:#dc2626}
+.ii.mutedf{opacity:.35}
+.nav-icon .ii{width:20px;height:20px}
+
+.seg{display:flex;background:var(--soft);border:1.5px solid var(--line);border-radius:14px;padding:4px;gap:2px;margin-bottom:12px}
+.seg-b{flex:1;border:0;background:transparent;color:var(--muted);font-weight:700;font-size:12px;padding:9px 0;border-radius:10px;cursor:pointer;transition:.15s}
+.seg-b.on{background:var(--card);color:var(--a);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+
+.btn-mini{border:1.5px solid var(--line);background:var(--soft);color:var(--ink);border-radius:10px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn-mini.ghost{border-color:transparent;background:transparent}
+.btn-mini.gear{border-color:transparent;background:transparent}
+.btn-danger{border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:14px;padding:13px 18px;font-weight:800;cursor:pointer}
+body.dark .btn-danger,body.black .btn-danger{background:#2a1215;border-color:#7f1d1d}
+.btn-ico{border:0;background:transparent;color:var(--muted);padding:6px;border-radius:10px;cursor:pointer;display:inline-flex}
+.btn-ico:active{background:var(--soft)}
+.gear{width:38px;height:38px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:#fff;font-weight:800;cursor:pointer;font-size:13px}
+
+.srch-row{margin-top:12px}
+.lp-inrow{position:relative;flex:1;display:flex;align-items:center}
+.lp-inrow input{width:100%;padding-left:40px}
+.lp-inico{position:absolute;left:14px;width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;pointer-events:none}
+
+.fchip[onclick]{user-select:none}
+.tag.ghost{background:transparent;border:1.2px dashed var(--line);color:var(--muted)}
+
+/* calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.cal-h{text-align:center;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;padding:4px 0}
+.cal-d{position:relative;border:0;background:var(--soft);border-radius:10px;padding:9px 0 12px;font-size:11.5px;font-weight:700;color:var(--ink);cursor:pointer}
+.cal-d.sun{color:#ef4444}
+.cal-d.sel{background:var(--a);color:#fff}
+.cal-d.today{box-shadow:inset 0 0 0 2px var(--a)}
+.cal-d i{position:absolute;left:50%;transform:translateX(-50%);bottom:4px;width:5px;height:5px;border-radius:50%;background:var(--a2)}
+.cal-d.sel i{background:#fff}
+
+/* notes */
+.note-card{border:1.5px solid var(--line);border-radius:16px;padding:12px 13px;margin-top:9px;background:var(--card);cursor:pointer}
+.note-card.pinned{border-color:var(--a2);box-shadow:0 2px 10px rgba(124,58,237,.10)}
+.note-title{font-weight:800;font-size:13px;color:var(--ink);margin-top:2px}
+.note-body{font-size:11.5px;color:var(--ink2);margin-top:4px;white-space:pre-wrap;line-height:1.5}
+.note-pin{height:16px}
+
+/* sheet modal */
+.sheet{position:fixed;inset:0;background:rgba(2,6,23,.45);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.sheet-card{width:100%;max-width:560px;background:var(--card);border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(2,6,23,.25);max-height:86vh;overflow-y:auto}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sheet-head h3{font-size:16px;font-weight:800;color:var(--ink)}
+
+/* progres */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.stat-box{background:var(--card);border:1.5px solid var(--line);border-radius:15px;padding:13px 9px;text-align:center}
+.stat-num{font-size:19px;font-weight:800;color:var(--a);font-variant-numeric:tabular-nums}
+.stat-label{font-size:9.5px;font-weight:700;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.pg-row{margin-top:4px}
+
+select#fs-subject{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--soft);color:var(--ink);font-weight:600;font-size:13px;margin-top:6px}
+textarea{width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--soft);color:var(--ink);font-size:13px;font-family:inherit;resize:vertical}
+.p-grid .stat-num{color:var(--a2)}
+
+/* tick checkbox utk daftar tugas */
+.tick{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--card);color:#fff;cursor:pointer;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.tick.on{background:var(--a);border-color:var(--a)}
+.tick .ii{width:13px;height:13px;stroke-width:3}

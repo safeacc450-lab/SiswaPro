@@ -85,6 +85,22 @@ const LocalDb = {
       }
       await this.exec('PRAGMA user_version = 2');
     }
+    if (ver < 3) {
+      // v3: notes table + task priority/notes columns (SiswaPro 3.0 screens).
+      // Local-only until server columns exist — sync push maps named fields,
+      // so extra columns ride along harmlessly.
+      const tc = await this.all('PRAGMA table_info(tasks)');
+      if (tc.length && !tc.some(c => (c.name ?? c.NAME) === 'priority'))
+        await this.exec("ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal'");
+      if (tc.length && !tc.some(c => (c.name ?? c.NAME) === 'notes'))
+        await this.exec('ALTER TABLE tasks ADD COLUMN notes TEXT NOT NULL DEFAULT \'\'');
+      await this.exec(`CREATE TABLE IF NOT EXISTS notes (
+        id TEXT PRIMARY KEY, space_id TEXT NOT NULL,
+        title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+        subject TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, deleted_at INTEGER)`);
+      await this.exec('PRAGMA user_version = 3');
+    }
   },
 
   async ensurePersonalSpace(ownerName) {
@@ -188,7 +204,7 @@ const LocalDb = {
 
   // ---- tasks -------------------------------------------------------
   async tasksAll() {
-    return this.all('SELECT id, title, subject, done, due, created_at FROM tasks WHERE space_id=? AND deleted_at IS NULL ORDER BY created_at DESC', [SP()]);
+    return this.all('SELECT id, title, subject, done, due, notes, priority, created_at FROM tasks WHERE space_id=? AND deleted_at IS NULL ORDER BY created_at DESC', [SP()]);
   },
   // full local tasks including tombstones (Phase 2 push mirror)
   async tasksAllRaw() {
@@ -213,15 +229,45 @@ const LocalDb = {
   // push uses id+subject+timestamps; created/updated kept as millis
   async taskAdd(t) {
     const id = this.uid(), now = Date.now();
-    await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,created_at,updated_at) VALUES (?,?,?,?,0,?,?,?)`,
-      [id, SP(), t.t, t.m, t.due || '', now, now]);
+    await this.all(`INSERT INTO tasks (id,space_id,title,subject,done,due,notes,priority,created_at,updated_at) VALUES (?,?,?,?,0,?,?,?,?,?)`,
+      [id, SP(), t.t, t.m, t.due || '', t.notes || '', ['low','normal','high'].includes(t.prio) ? t.prio : 'normal', now, now]);
     return id;
+  },
+  async taskUpdate(id, t) {
+    // values NOT NULL (else remote upsert writes NULLs on next sync)
+    await this.all(`UPDATE tasks SET title=?, subject=?, due=?, notes=?, priority=?, updated_at=?
+                    WHERE id=? AND space_id=?`,
+      [String(t.t), String(t.m), String(t.due || ''), String(t.notes || ''), String(t.prio || 'normal'), Date.now(), id, SP()]);
+  },
+  async tasksById(id) {
+    return this.one('SELECT id, title, subject, done, due, notes, priority, created_at, updated_at FROM tasks WHERE id=? AND space_id=?', [id, SP()]);
   },
   async taskSetDone(id, done) {
     await this.all('UPDATE tasks SET done=?, updated_at=? WHERE id=?', [done ? 1 : 0, Date.now(), id]);
   },
   async taskDel(id) {
     await this.all('UPDATE tasks SET deleted_at=?, updated_at=? WHERE id=?', [Date.now(), Date.now(), id]);
+  },
+
+  // ---- notes (SiswaPro 3.0) --------------------------------------
+  async notesAll() {
+    return this.all('SELECT id, title, body, subject, pinned, created_at, updated_at FROM notes WHERE space_id=? AND deleted_at IS NULL ORDER BY pinned DESC, updated_at DESC', [SP()]);
+  },
+  async noteAdd(title, body, subject) {
+    const id = this.uid(), now = Date.now();
+    await this.all('INSERT INTO notes (id,space_id,title,body,subject,pinned,created_at,updated_at) VALUES (?,?,?,?,0,?,?,?)',
+      [id, SP(), title, body || '', subject || '', now, now]);
+    return id;
+  },
+  async noteUpdate(id, title, body, subject, pinned) {
+    await this.all('UPDATE notes SET title=?, body=?, subject=?, pinned=?, updated_at=? WHERE id=? AND space_id=?',
+      [String(title), String(body || ''), String(subject || ''), pinned ? 1 : 0, Date.now(), id, SP()]);
+  },
+  async notePin(id, pinned) {
+    await this.all('UPDATE notes SET pinned=?, updated_at=? WHERE id=? AND space_id=?', [pinned ? 1 : 0, Date.now(), id, SP()]);
+  },
+  async noteDel(id) {
+    await this.all('UPDATE notes SET deleted_at=?, updated_at=? WHERE id=? AND space_id=?', [Date.now(), Date.now(), id, SP()]);
   },
 
   // ---- focus ------------------------------------------------------
@@ -248,6 +294,7 @@ const LocalDb = {
     await this.exec([
       'DELETE FROM subjects', 'DELETE FROM schedule', 'DELETE FROM tasks',
       'DELETE FROM focus_sessions', 'DELETE FROM settings', 'DELETE FROM spaces', 'DELETE FROM meta',
+      'DELETE FROM notes',
       'PRAGMA user_version = 0'
     ].join(';\n'));
     _spaceId = null;

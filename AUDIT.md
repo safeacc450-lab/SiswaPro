@@ -231,3 +231,26 @@ code, and the uncommitted-drift defect list above still stands):
 
 ## Regression tests
 - `tests/auth-tests.js` (new, wired into `npm test`): placeholders never match, garbage never fabricates a role, strangers get `role:null`, no secrets in client config. Full suite 35 checks — all pass.
+
+---
+
+# Audit 2026-10-27 — SiswaPro 3.0 (six screens, 3.0.0)
+
+## Scope
+Spec implementation: bottom-nav 5 (Beranda/Tugas/Belajar/Catatan/Progres; Profil via appbar avatar), task planner + month calendar + schedule segments, exact timestamp-based focus FSM, notes CRUD, progress analytics, generic sheet modal. All user copy edits preserved verbatim.
+
+## Design decision (ponytail ultra)
+- LOGIC pure module (www/logic.js): date/filter/sort/FSM/analytics — node-testable, no DOM.
+- Timer: timestamp-based persisted state {st, preset, remaining, since, once} in settings kv — survives process death; background recovery recomputes remaining from wall clock on `appStateChange`/boot.
+- Calendar: from LOGIC.monthGrid (Mon-first), markers = task count by due date.
+- Icons: inline SVG sprite (16 symbols), 5-tab nav emoji-free. No new dependencies.
+
+## Changed
+- localdb migration v3: tasks.priority + tasks.notes + notes table; taskUpdate/tasksById/notes CRUD.
+- index.html: sprite, nav, notes/progres views; v-jadwal & v-nilai merged (jadwal→tugas seg, rapor calc→progres).
+- app.js: render/hydrate/nav rewired; sheet form create/edit tasks+notes; filter stack (status+search+prio); calendar interactions; FSM wiring exactly-once via LOGIC.focusOnce (st:'done' persisted before focusAdd insert → no double-count after process kill).
+- sync.js: priority/notes local-only for now (ponytail comment rides along with push mapping).
+- versionCode 9 / 3.0.0.
+
+## Tests
+- tests/logic-tests.js (new, wired into `npm test`): FSM duration/exactly-once/cancel, monthGrid Mon-first, local-tz parse, filters, analytics. Full suite = 35 (language audit) + logic tests + 6 (auth) — all pass.

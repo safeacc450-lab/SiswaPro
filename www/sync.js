@@ -75,6 +75,8 @@ const Sync = {
   async push() {
     const sp = await this.resolveSpace();
     const toIso = ms => new Date(Number(ms)).toISOString();
+    // ponytail: tasks.priority + tasks.notes + notes table lokal dulu (3.0),
+    // server upgrade rides migrations 0004+ if cross-device sync wants them
     const tasks = (await LocalDb.tasksAllRaw()).map(r => ({
       id: r.id, space_id: sp, title: r.title, subject: r.subject,
       done: !!r.done, due: r.due || '',

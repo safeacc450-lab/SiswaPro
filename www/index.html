@@ -8,13 +8,32 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<svg style="display:none" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></symbol>
+<symbol id="i-task" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17.5" rx="2.5"/><path d="M8 8.5h8M8 12.5h8M8 16.5h5"/></symbol>
+<symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9.5 2.5h5"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9.5 9h5.5M9.5 12.5h5.5M9.5 16h3.5"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="6" y="12" width="3" height="8" rx="1"/><rect x="11" y="8" width="3" height="12" rx="1"/><rect x="16" y="4" width="3" height="16" rx="1"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.5 7l1 14h9l1-14"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/><path d="M14 6l4 4"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 7 3 3H7l3-3z"/><path d="M12 14v7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5 10 18 19.5 6.5"/></symbol>
+<symbol id="i-chl" viewBox="0 0 24 24"><path d="M14.5 5 8 12l6.5 7"/></symbol>
+<symbol id="i-chr" viewBox="0 0 24 24"><path d="M9.5 5 16 12l-6.5 7"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5.5v13M15 5.5v13"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+</defs></svg>
 
 <!-- ONBOARDING -->
 <div id="ob" class="obwrap" style="display:none">
   <div class="obcard" id="ob-1">
     <div class="ob-ico">🎓</div>
     <h1 class="ob-t">Selamat datang di SiswaPro</h1>
-    <p class="ob-p">Asisten belajar kamu: catat tugas, atur jam pelajaran, dan latih fokus. Mulai dengan kenalan dulu 👇</p>
+    <p class="ob-p">Asisten belajar kamu: catat tugas, atur jam pelajaran, dan latih fokus. Mulai dengan namamu dulu👇</p>
     <label class="ob-fl">Siapa nama kamu?</label>
     <input id="ob-nama" placeholder="Contoh: Felix" maxlength="24">
     <label class="ob-fl">Pilih warna favorit</label>
@@ -29,8 +48,8 @@
   <div class="obcard" id="ob-2" style="display:none">
     <div class="ob-ico">📚</div>
     <h1 class="ob-t">Pelajaran Kamu</h1>
-    <p class="ob-p">Pilih jenjang sekolahmu, lalu centang mata pelajaran yang kamu pelajari. Bisa diubah kapan saja di Pengaturan.</p>
-    <label class="ob-fl">Jenjang sekolah</label>
+    <p class="ob-p">Pilih Tingkat sekolahmu, lalu centang mata pelajaran yang kamu pelajari. Bisa diubah kapan saja di Pengaturan.</p>
+    <label class="ob-fl">Tingkat sekolah</label>
     <div class="day-chips" id="ob-levels" style="margin-top:8px"></div>
     <label class="ob-fl">Cari mapel</label>
     <input id="ob-search" placeholder="Contoh: Matematika" oninput="obPickSearch()">
@@ -50,7 +69,7 @@
   </div>
   <div class="appbar-right">
     <span class="badge" id="sync-chip" onclick="syncChipTap()">…</span>
-    <button class="gear" onclick="tab('set')">⚙️</button>
+    <button class="gear" id="prof-btn" onclick="tab('set')" aria-label="Profil">P</button>
   </div>
 </div>
 
@@ -81,7 +100,7 @@
     </div>
 
     <div class="card">
-      <h3 class="sec">TENGGAT TERDEKAT</h3>
+      <h3 class="sec">TENGGAT</h3>
       <div id="h-pr"></div>
     </div>
 
@@ -91,67 +110,89 @@
     </div>
   </div>
 
-  <!-- TUGAS -->
+  <!-- TUGAS: planner + kalender + jadwal -->
   <div id="v-pr" class="view" style="display:none">
-    <div class="card">
-      <h3 class="t">+ Tambah Tugas</h3>
-      <input id="in-pr" placeholder="Contoh: Latihan Modul Koding Bab 2">
-      <div class="field-row">
-        <div>
-          <label class="fl">Mapel</label>
-          <select id="in-mapel"></select>
-        </div>
-        <div>
-          <label class="fl">Tenggat</label>
-          <input type="date" id="in-due">
-        </div>
-      </div>
-      <button class="btn-primary" style="margin-top:14px" onclick="tambahPR()">Simpan Tugas</button>
+    <div class="seg" id="pr-seg">
+      <button class="seg-b on" data-seg="tugas" onclick="prSeg('tugas')">Tugas</button>
+      <button class="seg-b" data-seg="kal" onclick="prSeg('kal')">Kalender</button>
+      <button class="seg-b" data-seg="jd" onclick="prSeg('jd')">Jadwal</button>
     </div>
 
-    <div class="card">
-      <div class="pr-head">
-        <h3 class="sec" style="margin-bottom:0">DAFTAR TUGAS</h3>
-        <span class="pill" id="pr-prog" style="margin-top:0"></span>
+    <div id="seg-tugas">
+      <div class="card">
+        <div class="pr-head">
+          <h3 class="sec" style="margin-bottom:0">DAFTAR TUGAS</h3>
+          <button class="btn-mini" onclick="taskFormOpen()"><svg class="ii"><use href="#i-plus"/></svg>Baru</button>
+        </div>
+        <div class="srch-row">
+          <div class="lp-inrow">
+            <svg class="lp-inico"><use href="#i-search"/></svg>
+            <input id="in-pr" placeholder="Cari judul tugas…" oninput="tqChange(this)">
+          </div>
+        </div>
+        <div class="pr-filters">
+          <button class="fchip on" onclick="setFilter('all',this)">Semua</button>
+          <button class="fchip" onclick="setFilter('open',this)">Aktif</button>
+          <button class="fchip" onclick="setFilter('today',this)">Hari ini</button>
+          <button class="fchip" onclick="setFilter('done',this)">Selesai</button>
+        </div>
+        <div class="pr-filters" id="prio-filters">
+          <button class="fchip" onclick="setPrioF('',this)">Semua prioritas</button>
+          <button class="fchip" data-pf="high" onclick="setPrioF('high',this)">Prioritas tinggi</button>
+          <button class="fchip" data-pf="low" onclick="setPrioF('low',this)">Faforit rendah</button>
+        </div>
+        <div class="bar"><div id="pr-bar" class="bar-fill"></div></div>
+        <span class="pill" id="pr-prog"></span>
+        <div id="list-pr"></div>
       </div>
-      <div class="bar"><div id="pr-bar" class="bar-fill"></div></div>
-      <div class="pr-filters">
-        <button class="fchip on" onclick="setFilter('all',this)">Semua</button>
-        <button class="fchip" onclick="setFilter('open',this)">Aktif</button>
-        <button class="fchip" onclick="setFilter('today',this)">Tenggat Hari Ini</button>
-        <button class="fchip" onclick="setFilter('done',this)">Selesai</button>
+    </div>
+
+    <div id="seg-kal" style="display:none">
+      <div class="card">
+        <div class="pr-head">
+          <button class="btn-mini" onclick="kalShift(-1)" aria-label="Bulan sebelumnya"><svg class="ii"><use href="#i-chl"/></svg></button>
+          <h3 class="sec" style="margin-bottom:0" id="kal-title">—</h3>
+          <button class="btn-mini" onclick="kalShift(1)" aria-label="Bulan berikutnya"><svg class="ii"><use href="#i-chr"/></svg></button>
+        </div>
+        <div class="cal-grid" id="cal-head"></div>
+        <div class="cal-grid" id="cal-body"></div>
+        <div class="fokus-sub" id="kal-sub"></div>
       </div>
-      <div id="list-pr"></div>
+      <div class="card">
+        <h3 class="sec" id="kal-day-title">TUGAS HARI INI</h3>
+        <div id="list-kal-day"></div>
+      </div>
+    </div>
+
+    <div id="seg-jd" style="display:none">
+      <div class="card">
+        <div class="day-chips" id="day-chips"></div>
+      </div>
+      <div class="card">
+        <h3 class="t" id="jd-title">Jadwal</h3>
+        <div id="list-jd"></div>
+      </div>
+      <div class="card">
+        <h3 class="t">Tambah jam pelajaran</h3>
+        <label class="fl">Mata pelajaran</label>
+        <select id="in-jd-mapel"></select>
+        <div class="field-row">
+          <div><label class="fl">Mulai</label><input type="time" id="in-jd-start" value="07:00"></div>
+          <div><label class="fl">Selesai</label><input type="time" id="in-jd-end" value="07:45"></div>
+        </div>
+        <label class="fl">Ruang (opsional)</label>
+        <input id="in-jd-room" placeholder="Contoh: Lab Komputer 1">
+        <button class="btn-primary" style="margin-top:14px" onclick="tambahJd()">Tambah ke Jadwal</button>
+      </div>
     </div>
   </div>
 
-  <!-- JADWAL -->
-  <div id="v-jadwal" class="view" style="display:none">
-    <div class="card">
-      <div class="day-chips" id="day-chips"></div>
-    </div>
-    <div class="card">
-      <h3 class="t" id="jd-title">Jadwal</h3>
-      <div id="list-jd"></div>
-    </div>
-    <div class="card">
-      <h3 class="t">+ Tambah Jam Pelajaran</h3>
-      <label class="fl">Mata Pelajaran</label>
-      <select id="in-jd-mapel"></select>
-      <div class="field-row">
-        <div><label class="fl">Mulai</label><input type="time" id="in-jd-start" value="07:00"></div>
-        <div><label class="fl">Selesai</label><input type="time" id="in-jd-end" value="07:45"></div>
-      </div>
-      <label class="fl">Ruang (opsional)</label>
-      <input id="in-jd-room" placeholder="Contoh: Lab Komputer 1">
-      <button class="btn-primary" style="margin-top:14px" onclick="tambahJd()">Tambah ke Jadwal</button>
-    </div>
-  </div>
-
-  <!-- FOKUS -->
+  <!-- BELAJAR (fokus) -->
   <div id="v-fokus" class="view" style="display:none">
     <div class="card komp">
-      <h3 class="t" style="text-align:center">Timer Fokus Belajar</h3>
+      <h3 class="t" style="text-align:center">Waktu belajar</h3>
+      <label class="fl" style="text-align:center">Mapel sesi (opsional)</label>
+      <select id="fs-subject" onchange="focusSetSubject(this)"></select>
       <div class="ring" id="ring">
         <div class="ring-in">
           <div class="timer-num" id="timer-box">25:00</div>
@@ -164,12 +205,11 @@
         <button class="preset" onclick="setPreset(50,this)">50m</button>
       </div>
       <div class="field-row" style="margin-top:14px">
-        <button class="btn-primary" id="btn-timer" onclick="toggleTimer()">▶ Mulai Belajar</button>
-        <button class="btn-sec" onclick="resetTimer()">⟳</button>
+        <button class="btn-primary" id="btn-timer" onclick="toggleTimer()"><svg class="ii"><use href="#i-play"/></svg><span>Mulai belajar</span></button>
+        <button class="btn-sec" id="btn-cancel" style="flex:0 0 auto;width:auto;padding:12px 14px" onclick="cancelTimer()">Batalkan</button>
       </div>
-      <div class="fokus-sub" id="fokus-sub">Selesaikan sesi untuk menambah waktu fokus dan streak 📈</div>
+      <div class="fokus-sub" id="fokus-sub">Selesaikan sesi untuk menambah waktu fokus kamu.</div>
     </div>
-
     <div class="card">
       <h3 class="sec">FOKUS 7 HARI TERAKHIR</h3>
       <div class="bars" id="bars"></div>
@@ -177,18 +217,53 @@
     </div>
   </div>
 
-  <!-- RAPOR -->
-  <div id="v-nilai" class="view" style="display:none">
+  <!-- CATATAN -->
+  <div id="v-notes" class="view" style="display:none">
     <div class="card">
-      <h3 class="t">Kalkulator Nilai Rapor</h3>
+      <div class="pr-head">
+        <h3 class="sec" style="margin-bottom:0">CATATAN</h3>
+        <button class="btn-mini" onclick="noteFormOpen()"><svg class="ii"><use href="#i-plus"/></svg>Baru</button>
+      </div>
+      <div class="srch-row">
+        <div class="lp-inrow">
+          <svg class="lp-inico"><use href="#i-search"/></svg>
+          <input id="in-nq" placeholder="Cari catatan…" oninput="nqChange(this)">
+        </div>
+      </div>
+      <div class="pr-filters" id="note-subjects"></div>
+      <div id="list-notes"></div>
+    </div>
+  </div>
+
+  <!-- PROGRES -->
+  <div id="v-prog" class="view" style="display:none">
+    <div class="pr-filters" id="prog-range">
+      <button class="fchip on" onclick="progRange(7,this)">7 hari</button>
+      <button class="fchip" onclick="progRange(30,this)">30 hari</button>
+    </div>
+    <div class="stats-grid p-grid">
+      <div class="stat-box"><div class="stat-num" id="pg-rate">—</div><div class="stat-label">Tugas selesai</div></div>
+      <div class="stat-box"><div class="stat-num" id="pg-done">—</div><div class="stat-label">Tuntas</div></div>
+      <div class="stat-box"><div class="stat-num" id="pg-late">—</div><div class="stat-label">Terlambat</div></div>
+    </div>
+    <div class="card">
+      <h3 class="sec">FOKUS PER HARI</h3>
+      <div class="bars" id="pg-bars"></div>
+      <div class="fokus-sub" id="pg-total"></div>
+    </div>
+    <div class="card">
+      <h3 class="sec">PER MATA PELAJARAN</h3>
+      <div id="pg-subjects"></div>
+    </div>
+    <div class="card">
+      <h3 class="t">Kalkulator nilai rapor</h3>
       <p style="font-size:11.5px;color:var(--muted);margin-top:4px">Bobot: Tugas 25% • UTS 35% • UAS 40%</p>
-      <label class="fl">Nilai Tugas</label>
-      <input type="number" id="nt" value="85" inputmode="numeric">
-      <label class="fl">Nilai UTS</label>
-      <input type="number" id="nu" value="80" inputmode="numeric">
-      <label class="fl">Nilai UAS</label>
-      <input type="number" id="na" value="85" inputmode="numeric">
-      <button class="btn-primary" onclick="hitung()">Hitung Predikat</button>
+      <div class="field-row">
+        <div><label class="fl">Tugas</label><input type="number" id="nt" value="85" inputmode="numeric"></div>
+        <div><label class="fl">UTS</label><input type="number" id="nu" value="80" inputmode="numeric"></div>
+        <div><label class="fl">UAS</label><input type="number" id="na" value="85" inputmode="numeric"></div>
+      </div>
+      <button class="btn-primary" onclick="hitung()">Hitung predikat</button>
       <div class="hasil" id="hasil-box" style="display:none">
         <div class="ring mini" id="hasil-ring"><div class="ring-in"><div class="n" id="hasil-n"></div></div></div>
         <div class="p" id="hasil-p"></div>
@@ -235,7 +310,7 @@
       <div class="pick-scroll" id="pick-list"></div>
       <button class="btn-sec" style="margin-top:12px" onclick="toggleCustomForm()">＋ Tambah Mata Pelajaran Sendiri</button>
       <div id="custom-form" style="display:none;margin-top:10px">
-        <input id="in-custom-name" placeholder="Nama mapel (mis. Membaca Al-Qur'an)" maxlength="48">
+        <input id="in-custom-name" placeholder="Nama mapel (Ya... ini contohnya, Terserah 👀)" maxlength="48">
         <input id="in-custom-teacher" placeholder="Nama guru (opsional)" maxlength="36">
         <button class="btn-primary" style="margin-top:10px" onclick="tambahMapel()">Simpan Mapel Sendiri</button>
       </div>
@@ -254,7 +329,7 @@
       <p style="font-size:11.5px;color:var(--muted);line-height:1.6">
         SiswaPro — dibuat untuk siswa Indonesia. Tanpa iklan.
         Data tersimpan di perangkat ini; salinan teks cadangan
-        tetap tersedia. Akun &amp; sinkronisasi online hadir di pembaruan berikutnya.
+	The Greatest🪽
       </p>
     </div>
   </div>
@@ -349,7 +424,7 @@
         <span class="lp-fico" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.4c0 4.6-3.2 7.9-7.5 9.6-4.3-1.7-7.5-5-7.5-9.6V6z"/><circle cx="12" cy="11.4" r="1.7"/><path d="M12 13.1v2.6"/></svg>
         </span>
-        <div><strong>Data Kamu Terlindungi</strong><span>Hanya kamu yang bisa melihat data kamu</span></div>
+        <div><strong>Data Kamu Terlindungi</strong><span>Jangan Ragukan Felix</span></div>
       </li>
       <li>
         <span class="lp-fico" aria-hidden="true">
@@ -371,11 +446,16 @@
 
 <!-- BOTTOM NAV -->
 <div class="bottom-nav">
-  <button class="nav-item active" id="b-home" onclick="tab('home')"><div class="nav-icon">🏠</div><span>Beranda</span></button>
-  <button class="nav-item" id="b-pr" onclick="tab('pr')"><div class="nav-icon">📝</div><span>Tugas</span></button>
-  <button class="nav-item" id="b-jadwal" onclick="tab('jadwal')"><div class="nav-icon">📅</div><span>Jadwal</span></button>
-  <button class="nav-item" id="b-fokus" onclick="tab('fokus')"><div class="nav-icon">⏱️</div><span>Fokus</span></button>
-  <button class="nav-item" id="b-nilai" onclick="tab('nilai')"><div class="nav-icon">🧮</div><span>Rapor</span></button>
+  <button class="nav-item active" id="b-home" onclick="tab('home')"><div class="nav-icon"><svg class="ii"><use href="#i-home"/></svg></div><span>Beranda</span></button>
+  <button class="nav-item" id="b-pr" onclick="tab('pr')"><div class="nav-icon"><svg class="ii"><use href="#i-task"/></svg></div><span>Tugas</span></button>
+  <button class="nav-item" id="b-fokus" onclick="tab('fokus')"><div class="nav-icon"><svg class="ii"><use href="#i-timer"/></svg></div><span>Belajar</span></button>
+  <button class="nav-item" id="b-notes" onclick="tab('notes')"><div class="nav-icon"><svg class="ii"><use href="#i-note"/></svg></div><span>Catatan</span></button>
+  <button class="nav-item" id="b-prog" onclick="tab('prog')"><div class="nav-icon"><svg class="ii"><use href="#i-chart"/></svg></div><span>Progres</span></button>
+</div>
+
+<!-- shared sheet modal (create/edit forms) -->
+<div id="sheet" class="sheet" style="display:none" onclick="if(event.target===this)sheetClose()">
+  <div class="sheet-card" id="sheet-body" role="dialog" aria-modal="true"></div>
 </div>
 
 <button class="to-top" id="totop" onclick="upTop()">↑</button>
@@ -384,6 +464,7 @@
 <script src="vendor/supabase.umd.js"></script>
 <script src="vendor/supabase-config.js"></script>
 <script src="subjects.js"></script>
+<script src="logic.js"></script>
 <script src="auth.js"></script>
 <script src="sync.js"></script>
 <script src="localdb.js"></script>
